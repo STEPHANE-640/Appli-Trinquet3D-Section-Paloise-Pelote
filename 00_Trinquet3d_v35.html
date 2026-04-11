@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Trinquet 3D — Simulateur de coups</title>
+
+<!-- PWA : plein écran sans barre d'adresse -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trinquet 3D">
+<meta name="application-name" content="Trinquet 3D">
+<meta name="theme-color" content="#0a0c12">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0c12; overflow: hidden; }
+  #container { position: fixed; inset: 0; }
+
+  #panel {
+    position: fixed; top: 12px; right: 12px; width: 300px;
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: calc(100vh - 24px); overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: #333 transparent;
+    z-index: 10;
+  }
+  .shot-btn {
+    display: flex; flex-direction: column; padding: 10px 14px;
+    border: 1px solid #2a2d38; border-radius: 8px; background: #12141cdd;
+    cursor: pointer; transition: all .15s; backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .shot-btn:hover { background: #1a1e2add; border-color: #3a3f52; }
+  .shot-btn.active { border-color: var(--c); box-shadow: 0 0 12px color-mix(in srgb, var(--c) 25%, transparent); }
+  .shot-btn .name { font-weight: 600; font-size: .88rem; color: #eee; }
+  .shot-btn .es { color: #888; font-weight: 400; font-size: .78rem; }
+  .shot-btn .desc { font-size: .72rem; color: #999; line-height: 1.35; margin-top: 3px; }
+
+  #cameras {
+    position: fixed; top: 12px; left: 12px; display: flex; gap: 6px;
+    flex-wrap: wrap; max-width: 440px; z-index: 10;
+  }
+  #cameras button {
+    padding: 6px 12px; border: 1px solid #2a2d38; border-radius: 6px;
+    background: #12141cdd; color: #bbb; cursor: pointer; font-size: .75rem;
+    transition: all .15s; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  #cameras button:hover { background: #1e2230dd; color: #fff; }
+  #cameras button.active { border-color: #4a7cff; color: #4a7cff; }
+
+  #controls {
+    position: fixed; bottom: 12px; left: 12px; display: flex; gap: 8px;
+    align-items: center; z-index: 10;
+  }
+  #controls button {
+    padding: 7px 16px; border: 1px solid #2a2d38; border-radius: 6px;
+    background: #12141cdd; color: #ccc; cursor: pointer; font-size: .78rem;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: all .15s;
+  }
+  #controls button:hover { background: #1e2230dd; color: #fff; }
+  #dimBtn.active { border-color: #ccaa00; color: #ccaa00; }
+  #editToggle.active { border-color: #7ec8ff; color: #7ec8ff; }
+
+  #editor {
+    position: fixed; right: 12px; bottom: 12px; width: 310px;
+    border: 1px solid #2a2d38; border-radius: 10px; background: #12141cdd;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    padding: 10px 12px; z-index: 10; display: none;
+  }
+  #editor.visible { display: block; }
+  #editor .etitle { color: #ccd5e5; font-size: .78rem; font-weight: 600; margin-bottom: 6px; }
+  #editor .grp { margin-top: 14px; }
+  #editor .grp-label {
+    font-size: .60rem; font-weight: 700; color: #4a5575;
+    text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px;
+    padding-bottom: 4px; border-bottom: 1px solid #1e2238;
+  }
+  #editor .srow { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  #editor .srow .slabel {
+    font-size: .67rem; color: #8090b0; flex: 0 0 130px; white-space: nowrap;
+  }
+  #editor .srow .slabel .sval {
+    font-size: .70rem; font-weight: 600; color: #c0d4f0;
+    font-variant-numeric: tabular-nums; margin-left: 3px;
+  }
+  #editor .srow input[type=range] {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 3px; border-radius: 2px; background: #252840; border: none; padding: 0;
+    cursor: pointer; outline: none;
+  }
+  #editor .srow input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: #7ec8ff; cursor: pointer; border: none;
+  }
+  #editor .srow input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #7ec8ff; border: none; cursor: pointer;
+  }
+
+  /* boutons */
+  #editor .btns { display: flex; gap: 5px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+  #editor button {
+    padding: 5px 8px; border: 1px solid #2a2d38; border-radius: 6px;
+    background: #12141cdd; color: #c9d0dd; cursor: pointer; font-size: .70rem;
+  }
+  #editor button:hover { background: #1e2230dd; color: #fff; }
+  #editor .live-lbl {
+    display: flex; align-items: center; gap: 5px;
+    color: #8090b0; font-size: .70rem; padding-right: 4px; cursor: pointer;
+  }
+  #editor .live-lbl input { width: auto; cursor: pointer; }
+
+  #title {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    color: #ffffff50; font-size: .7rem; z-index: 10; text-align: center;
+    pointer-events: none;
+  }
+
+  /* ── Alerte collision chapa / sortie ── */
+  #collision-alert {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.7);
+    padding: 14px 28px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; letter-spacing: .04em;
+    text-align: center; pointer-events: none;
+    opacity: 0; z-index: 100;
+    transition: opacity .08s, transform .08s;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 2px solid; white-space: nowrap;
+  }
+  #collision-alert.show {
+    opacity: 1; transform: translate(-50%, -50%) scale(1);
+  }
+  #collision-alert.type-chapa {
+    background: rgba(255,200,0,0.18); border-color: #ffcc00;
+    color: #ffee55; box-shadow: 0 0 32px rgba(255,200,0,0.45);
+  }
+  #collision-alert.type-out {
+    background: rgba(255,60,60,0.18); border-color: #ff4444;
+    color: #ff7777; box-shadow: 0 0 32px rgba(255,60,60,0.45);
+  }
+  #flash-overlay {
+    position: fixed; inset: 0; pointer-events: none; z-index: 99;
+    opacity: 0; transition: opacity .06s;
+  }
+  #flash-overlay.flash-chapa { background: rgba(255,210,0,0.12); }
+  #flash-overlay.flash-out   { background: rgba(255,50,50,0.14); }
+
+  #copyright {
+    position: fixed; bottom: 10px; right: 12px;
+    display: flex; align-items: center; gap: 7px;
+    z-index: 10; pointer-events: none;
+    opacity: 0.38; transition: opacity .25s;
+  }
+  #copyright:hover { opacity: 0.72; }
+  #copyright img { height: 22px; width: auto; filter: brightness(0.85) saturate(0.7); }
+  #copyright span {
+    font-size: .62rem; color: #8a9ab8; letter-spacing: .03em;
+    font-style: italic; white-space: nowrap;
+  }
+
+  /* ── Bannière mobile ── */
+  #mobile-banner {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0;
+    background: linear-gradient(135deg, #1a1030, #0f1a30);
+    border-bottom: 1px solid #3a2a60;
+    padding: 10px 14px 10px 14px;
+    z-index: 200;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.6);
+  }
+  #mobile-banner .mb-inner {
+    display: flex; align-items: center; gap: 10px;
+  }
+  #mobile-banner .mb-icon {
+    font-size: 1.4rem; flex-shrink: 0;
+  }
+  #mobile-banner .mb-text {
+    flex: 1;
+    font-size: .72rem; color: #c0b0e8; line-height: 1.4;
+  }
+  #mobile-banner .mb-text strong {
+    display: block; color: #e0d0ff; font-size: .78rem; margin-bottom: 2px;
+  }
+  #mobile-banner .mb-close {
+    background: none; border: 1px solid #5a3a90; border-radius: 6px;
+    color: #c0b0e8; font-size: .68rem; padding: 4px 8px;
+    cursor: pointer; flex-shrink: 0; pointer-events: all;
+    transition: all .15s;
+  }
+  #mobile-banner .mb-close:hover { background: #2a1a50; color: #fff; }
+
+  /* Décalage du contenu quand la bannière est visible */
+  body.mobile-detected #cameras { top: 62px; }
+  body.mobile-detected #panel   { top: 62px; max-height: calc(100vh - 74px); }
+  body.mobile-detected #title   { bottom: 4px; font-size: .6rem; }
+
+  /* Adaptation panel sur mobile (écran étroit) */
+  @media (max-width: 480px) {
+    #panel { width: calc(100vw - 24px); right: 12px; }
+    #cameras { max-width: calc(100vw - 24px); }
+    #controls { flex-wrap: wrap; max-width: calc(100vw - 24px); gap: 5px; }
+    #controls button { font-size: .70rem; padding: 6px 10px; }
+    #editor { width: calc(100vw - 24px); right: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="mobile-banner">
+  <div class="mb-inner">
+    <div class="mb-icon">📱</div>
+    <div class="mb-text">
+      <strong>Application optimisée pour ordinateur</strong>
+      Cette simulation 3D est conçue pour être utilisée sur un écran plus grand. Certaines fonctionnalités peuvent être difficiles à utiliser sur téléphone.
+    </div>
+    <button class="mb-close" id="mb-close-btn">Compris</button>
+  </div>
+</div>
+
+<div id="container"></div>
+<div id="flash-overlay"></div>
+<div id="collision-alert"></div>
+
+<div id="cameras">
+  <button data-cam="default" class="active">Vue 3/4</button>
+  <button data-cam="side">Côté (Vitre)</button>
+  <button data-cam="player">Vue joueur</button>
+  <button data-cam="gallery">Galerie (Tejadillo)</button>
+</div>
+
+<div id="panel"></div>
+
+<div id="controls">
+  <button id="dimBtn">Dimensions</button>
+  <button id="speed">Vitesse : 0.5x</button>
+  <button id="replay">&#x25B6; Rejouer</button>
+  <button id="pause">Pause</button>
+  <button id="editToggle">Simuler vos coups</button>
+</div>
+
+<div id="editor">
+  <div class="etitle">Simuler vos coups</div>
+
+  <!-- ── Groupe 1 : Position du joueur ── -->
+  <div class="grp">
+    <div class="grp-label">📍 Position du joueur</div>
+
+
+    <div class="srow">
+      <span class="slabel">Frontis↔Rebote <span class="sval" id="sv_pos_x">15.5 m</span></span>
+      <input id="sl_pos_x" type="range" min="1" max="26.2" step="0.1" value="15.5">
+    </div>
+    <div class="srow">
+      <span class="slabel">Vitre↔Filet G. <span class="sval" id="sv_pos_z">5.0 m</span></span>
+      <input id="sl_pos_z" type="range" min="0.5" max="7" step="0.1" value="5">
+    </div>
+    <div class="srow">
+      <span class="slabel">Hauteur de frappe <span class="sval" id="sv_pos_y">0.8 m</span></span>
+      <input id="sl_pos_y" type="range" min="0.5" max="1.7" step="0.05" value="0.8">
+    </div>
+  </div>
+
+  <!-- ── Groupe 2 : Direction ── -->
+  <div class="grp">
+    <div class="grp-label">🎯 Direction du coup</div>
+    <div class="srow">
+      <span class="slabel">Horizontal <span class="sval" id="sv_angle_h">7°</span></span>
+      <input id="sl_angle_h" type="range" min="-90" max="90" step="1" value="7">
+    </div>
+    <div class="srow">
+      <span class="slabel">Vertical <span class="sval" id="sv_angle_v">25°</span></span>
+      <input id="sl_angle_v" type="range" min="0" max="60" step="1" value="25">
+    </div>
+  </div>
+
+  <!-- ── Groupe 3 : Puissance ── -->
+  <div class="grp">
+    <div class="grp-label">💥 Puissance</div>
+    <div class="srow">
+      <span class="slabel">Intensité <span class="sval" id="sv_strength">20</span></span>
+      <input id="sl_strength" type="range" min="10" max="30" step="0.5" value="20">
+    </div>
+  </div>
+
+  <!-- ── Boutons ── -->
+  <div class="btns">
+    <label class="live-lbl">
+      <input id="ed_live" type="checkbox" checked> En direct
+    </label>
+    <button id="ed_apply">Appliquer</button>
+    <button id="ed_export">Exporter JSON</button>
+    <button id="ed_import_btn">Importer JSON</button>
+    <input id="ed_import_file" type="file" accept="application/json" style="display:none">
+  </div>
+</div>
+
+<div id="copyright">
+  <img src="data:image/png;base64,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" alt="Section Paloise Pelote">
+  <span>fait par S. Dussarps &amp; fils</span>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ══════════════════════════════════════════════════════════════
+// ── Système d'alertes collision chapa / sortie  (déclaré en
+//    premier pour être disponible dès la construction du terrain)
+// ══════════════════════════════════════════════════════════════
+
+const alertEl  = document.getElementById('collision-alert');
+const flashEl  = document.getElementById('flash-overlay');
+let alertTimer = null;
+
+// Tableau des zones enregistrées et verrou par trajectoire
+const chapaZones  = [];
+const alertsFired = new Set();
+
+function registerChapaZone(zone) { chapaZones.push(zone); }
+
+function playCollisionBeep(type) {
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    if (type === 'chapa') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.06);
+      gain.gain.setValueAtTime(0.28, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.22);
+    } else {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.18);
+      gain.gain.setValueAtTime(0.22, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.30);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.30);
+    }
+  } catch(e) {}
+}
+
+function triggerAlert(label, type) {
+  if (alertTimer) { clearTimeout(alertTimer); alertTimer = null; }
+  flashEl.className = type === 'chapa' ? 'flash-chapa' : 'flash-out';
+  flashEl.style.opacity = '1';
+  setTimeout(() => { flashEl.style.opacity = '0'; }, 180);
+  alertEl.textContent = label;
+  alertEl.className   = `show type-${type}`;
+  playCollisionBeep(type);
+  alertTimer = setTimeout(() => { alertEl.classList.remove('show'); }, 1600);
+}
+
+function resetAlerts() {
+  alertsFired.clear();
+  if (alertTimer) { clearTimeout(alertTimer); alertTimer = null; }
+  alertEl.classList.remove('show');
+  flashEl.style.opacity = '0';
+}
+
+function checkChapaZoneHit(pos, idx) {
+  for (let ci = 0; ci < chapaZones.length; ci++) {
+    const fireKey = String(ci);
+    if (alertsFired.has(fireKey)) continue;
+    const z = chapaZones[ci];
+    // Axe principal
+    const pMain = pos[z.axis];
+    if (Math.abs(pMain - z.axisVal) > z.tol) continue;
+    // Bande Y (sauf si l'axe principal est déjà Y)
+    if (z.axis !== 'y' && (pos.y < z.yMin || pos.y > z.yMax)) continue;
+    // Étendue transversale 1
+    if (pos[z.t1Axis] < z.t1Min || pos[z.t1Axis] > z.t1Max) continue;
+    // Étendue transversale 2 (optionnelle — chapas horizontales d'oreilles)
+    if (z.t2Axis !== undefined) {
+      if (pos[z.t2Axis] < z.t2Min || pos[z.t2Axis] > z.t2Max) continue;
+      if (pos.y < z.yMin || pos.y > z.yMax) continue;
+    }
+    alertsFired.add(fireKey);
+    triggerAlert(z.label, z.type);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+
+// ── Dimensions du trinquet (mètres) ──
+const COURT_L = 28.5, COURT_W = 9.3, COURT_H = 9.5;
+const FRAILE_W = 0.47;
+const TEJ_D = 1.3, TEJ_H_OUTER = 1.9, TEJ_H_INNER = 2.25;
+const CHAPA_LOW = 0.8, CHAPA_HIGH = 8.5, CHAPA_REBOTE = 5.5;
+const WALL_STEP_X = 4.5, WALL_H_FRONT = 8.5, WALL_H_BACK = 5.5;
+const TEJ_Z = COURT_W - TEJ_D;
+const FRONTIS_H = 10;
+const W = COURT_W;
+const NET_START = 4.5;
+const NET_END = 25.2;
+const POLE_X = [4.5, 7.25, 10.0, 12.5, 15.0, 17.5, 20.0, 22.6, 25.2];
+
+// ── Scène ──
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0c12);
+scene.fog = new THREE.FogExp2(0x0a0c12, 0.008);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.getElementById('container').appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(30, 13, 0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(10, 2, 5);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.update();
+
+// ── Lumières ──
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const dirLight = new THREE.DirectionalLight(0xfff8e8, 1.2);
+dirLight.position.set(14, 20, 5);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+Object.assign(dirLight.shadow.camera, { left: -20, right: 35, top: 15, bottom: -5, near: 1, far: 50 });
+scene.add(dirLight);
+scene.add(new THREE.DirectionalLight(0xb0c0ff, 0.3).translateX(-5).translateY(10).translateZ(10));
+
+// ── Matériaux ──
+
+// Chapa : jaune vif avec forte émission — visible depuis tous les angles
+const chapaMat = new THREE.MeshStandardMaterial({
+  color: 0xffdd00,
+  emissive: 0xffaa00,
+  emissiveIntensity: 0.9,
+  roughness: 0.15,
+  metalness: 0.6,
+});
+
+const mat = {
+  floor:    new THREE.MeshStandardMaterial({ color: 0x1a3828, roughness: 0.85 }),
+  frontis:  new THREE.MeshStandardMaterial({ color: 0xb8a898, roughness: 0.6 }),
+  rebote:   new THREE.MeshStandardMaterial({ color: 0xa09080, roughness: 0.6, transparent: true, opacity: 0.15 }),
+  wall:     new THREE.MeshStandardMaterial({ color: 0xa89888, roughness: 0.6 }),
+  glass:    new THREE.MeshStandardMaterial({ color: 0x88bbdd, roughness: 0.1, transparent: true, opacity: 0.06, side: THREE.DoubleSide }),
+  fraile:   new THREE.MeshStandardMaterial({ color: 0xd4a040, roughness: 0.4, side: THREE.DoubleSide }),
+  tejRoof:  new THREE.MeshStandardMaterial({ color: 0x705838, roughness: 0.7, side: THREE.DoubleSide }),
+  tejWall:  new THREE.MeshStandardMaterial({ color: 0x807060, roughness: 0.6 }),
+  chapa:    chapaMat,
+  net:      new THREE.MeshStandardMaterial({ color: 0x9060b0, transparent: true, opacity: 0.35, side: THREE.DoubleSide }),
+  line:     new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x444444, transparent: true, opacity: 0.5 }),
+  padding:  new THREE.MeshStandardMaterial({ color: 0x332222, roughness: 0.95 }),
+  oreille:  new THREE.MeshStandardMaterial({ color: 0x882828, emissive: 0x441111, roughness: 0.7 }),
+};
+
+function box(w, h, d, material) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+function addEdge(pts, color = 0x446688, opacity = 0.3) {
+  const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p)));
+  scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity })));
+}
+
+// Ajoute une ligne lumineuse jaune (MeshBasicMaterial = non affectée par l'éclairage)
+// sur la face visible d'une chapa, côté intérieur du terrain
+function addChapaLine(points) {
+  const geo = new THREE.BufferGeometry().setFromPoints(
+    points.map(p => new THREE.Vector3(...p))
+  );
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffee00 }));
+  scene.add(line);
+}
+
+// ── Sol ──
+const floor = box(COURT_L, 0.12, COURT_W, mat.floor);
+floor.position.set(COURT_L/2, -0.06, COURT_W/2);
+scene.add(floor);
+
+[7.25, 10, 15, 17.5, 20].forEach(d => {
+  const l = box(0.08, 0.005, COURT_W, mat.line);
+  l.position.set(d, 0.005, COURT_W/2);
+  scene.add(l);
+});
+
+// ── Ligne de repère avant (50 cm) entre 7,25 m et 10 m ──
+// Part du pied du Tejadillo (z = TEJ_Z) vers le centre sur 50 cm
+// x = 8.25 m (mi-distance entre 7,25 et 10)
+const REPERE_AVANT_X = (7.25 + 10) / 2;   // 8.625 m — milieu entre les deux lignes
+const repereAvantMat = new THREE.MeshStandardMaterial({
+  color: 0xff8800, emissive: 0xff4400, emissiveIntensity: 0.8,
+  transparent: true, opacity: 0.85,
+});
+const repereAvant = box(0.07, 0.006, 0.5, repereAvantMat);
+repereAvant.position.set(REPERE_AVANT_X, 0.006, TEJ_Z - 0.25);
+scene.add(repereAvant);
+const perpLine = box(COURT_L - 15, 0.005, 0.08, mat.line);
+perpLine.position.set(15 + (COURT_L - 15)/2, 0.005, COURT_W/2);
+scene.add(perpLine);
+
+// ── Frontis (x=0) ──
+const frontis = box(0.35, FRONTIS_H, COURT_W, mat.frontis);
+frontis.position.set(-0.175, FRONTIS_H/2, COURT_W/2);
+scene.add(frontis);
+
+const padAbove = box(0.36, FRONTIS_H - CHAPA_HIGH, COURT_W, mat.padding);
+padAbove.position.set(-0.175, CHAPA_HIGH + (FRONTIS_H - CHAPA_HIGH)/2, COURT_W/2);
+scene.add(padAbove);
+
+const oreilleH = WALL_H_FRONT - WALL_H_BACK;
+
+// Chapa basse du frontis — bord BAS à CHAPA_LOW (0,80 m), centre à CHAPA_LOW + 0.10
+const chapaLow = box(0.12, 0.20, COURT_W + 0.1, mat.chapa);
+chapaLow.position.set(0.06, CHAPA_LOW + 0.10, COURT_W/2);
+scene.add(chapaLow);
+// Lignes : bord bas, milieu, bord haut
+addChapaLine([[0.13, CHAPA_LOW,        0], [0.13, CHAPA_LOW,        COURT_W]]);
+addChapaLine([[0.13, CHAPA_LOW + 0.10, 0], [0.13, CHAPA_LOW + 0.10, COURT_W]]);
+addChapaLine([[0.13, CHAPA_LOW + 0.20, 0], [0.13, CHAPA_LOW + 0.20, COURT_W]]);
+
+// Chapa haute du frontis — bord BAS à CHAPA_HIGH (8,50 m), centre à CHAPA_HIGH + 0.09
+const chapaHigh = box(0.12, 0.18, COURT_W + 0.1, mat.chapa);
+chapaHigh.position.set(0.06, CHAPA_HIGH + 0.09, COURT_W/2);
+scene.add(chapaHigh);
+addChapaLine([[0.13, CHAPA_HIGH,        0], [0.13, CHAPA_HIGH,        COURT_W]]);
+addChapaLine([[0.13, CHAPA_HIGH + 0.09, 0], [0.13, CHAPA_HIGH + 0.09, COURT_W]]);
+addChapaLine([[0.13, CHAPA_HIGH + 0.18, 0], [0.13, CHAPA_HIGH + 0.18, COURT_W]]);
+
+const padBelow = box(0.36, CHAPA_LOW, COURT_W, mat.padding);
+padBelow.position.set(-0.175, CHAPA_LOW/2, COURT_W/2);
+scene.add(padBelow);
+
+// ── Zones cibles du frontis ──
+const ZONE_Y_MID = (CHAPA_LOW + CHAPA_HIGH) / 2;
+const ZONE_Z_MID = COURT_W / 2;
+const ZONE_H = (CHAPA_HIGH - CHAPA_LOW) / 2;
+const ZONE_W_HALF = COURT_W / 2;
+
+const zonesDef = [
+  { id: 1, label: '1', yC: ZONE_Y_MID + ZONE_H/2, zC: ZONE_Z_MID + ZONE_W_HALF/2 },
+  { id: 2, label: '2', yC: ZONE_Y_MID + ZONE_H/2, zC: ZONE_Z_MID - ZONE_W_HALF/2 },
+  { id: 3, label: '3', yC: ZONE_Y_MID - ZONE_H/2, zC: ZONE_Z_MID + ZONE_W_HALF/2 },
+  { id: 4, label: '4', yC: ZONE_Y_MID - ZONE_H/2, zC: ZONE_Z_MID - ZONE_W_HALF/2 },
+];
+
+const zones = [];
+const hitZones = new Set();
+const zoneBorderMat = new THREE.LineBasicMaterial({ color: 0x4488cc, transparent: true, opacity: 0.25 });
+
+for (const zd of zonesDef) {
+  const zm = new THREE.MeshStandardMaterial({
+    color: 0x4488cc, transparent: true, opacity: 0.06,
+    emissive: 0x000000, roughness: 0.5, side: THREE.DoubleSide,
+  });
+  const zh = ZONE_H - 0.1, zw = ZONE_W_HALF - 0.1;
+  const mesh = box(0.02, zh, zw, zm);
+  mesh.position.set(0.02, zd.yC, zd.zC);
+  scene.add(mesh);
+
+  const by0 = zd.yC - zh/2, by1 = zd.yC + zh/2;
+  const bz0 = zd.zC - zw/2, bz1 = zd.zC + zw/2;
+  const bx = 0.03;
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(bx,by0,bz0), new THREE.Vector3(bx,by1,bz0),
+    new THREE.Vector3(bx,by1,bz1), new THREE.Vector3(bx,by0,bz1),
+    new THREE.Vector3(bx,by0,bz0),
+  ]), zoneBorderMat));
+
+  const sp = createSprite(zd.label, [0.05, zd.yC, zd.zC], '#4488cc', 1.8);
+  scene.add(sp);
+
+  zones.push({ ...zd, mesh, mat: zm, sprite: sp });
+}
+
+function checkZoneHit(pos) {
+  if (pos.x > 0.5) return;
+  for (const z of zones) {
+    if (hitZones.has(z.id)) continue;
+    if (Math.abs(pos.y - z.yC) < ZONE_H/2 && Math.abs(pos.z - z.zC) < ZONE_W_HALF/2) {
+      hitZones.add(z.id);
+      z.mat.opacity = 0.3;
+      z.mat.emissive.set(0x2266aa);
+      z.sprite.material.opacity = 1.0;
+    }
+  }
+}
+
+function resetZones() {
+  hitZones.clear();
+  for (const z of zones) {
+    z.mat.opacity = 0.06;
+    z.mat.emissive.set(0x000000);
+    z.sprite.material.opacity = 0.7;
+  }
+}
+
+// ── Rebote (x=28.5) ──
+const rebote = box(0.3, WALL_H_BACK, COURT_W, mat.rebote);
+rebote.position.set(COURT_L + 0.15, WALL_H_BACK/2, COURT_W/2);
+scene.add(rebote);
+
+// Chapa du rebote (hauteur 5,50 m) — bord BAS à CHAPA_REBOTE, centre à CHAPA_REBOTE + 0.09
+const chapaReb = box(0.12, 0.18, COURT_W + 0.1, mat.chapa);
+chapaReb.position.set(COURT_L - 0.06, CHAPA_REBOTE + 0.09, COURT_W/2);
+scene.add(chapaReb);
+addChapaLine([[COURT_L - 0.13, CHAPA_REBOTE,        0], [COURT_L - 0.13, CHAPA_REBOTE,        COURT_W]]);
+addChapaLine([[COURT_L - 0.13, CHAPA_REBOTE + 0.09, 0], [COURT_L - 0.13, CHAPA_REBOTE + 0.09, COURT_W]]);
+addChapaLine([[COURT_L - 0.13, CHAPA_REBOTE + 0.18, 0], [COURT_L - 0.13, CHAPA_REBOTE + 0.18, COURT_W]]);
+
+// ── Chapa mur GAUCHE (z=COURT_W) à hauteur CHAPA_REBOTE (5,50 m) ──
+// 1. Partie principale : de WALL_STEP_X à COURT_L (évite la largeur basse de l'oreille)
+const chapaLeftMain = COURT_L - WALL_STEP_X;
+const chapaLeftWall = box(chapaLeftMain, 0.18, 0.12, mat.chapa);
+chapaLeftWall.position.set(WALL_STEP_X + chapaLeftMain/2, CHAPA_REBOTE + 0.09, COURT_W - 0.06);
+scene.add(chapaLeftWall);
+addChapaLine([[WALL_STEP_X, CHAPA_REBOTE,        COURT_W - 0.13], [COURT_L, CHAPA_REBOTE,        COURT_W - 0.13]]);
+addChapaLine([[WALL_STEP_X, CHAPA_REBOTE + 0.09, COURT_W - 0.13], [COURT_L, CHAPA_REBOTE + 0.09, COURT_W - 0.13]]);
+addChapaLine([[WALL_STEP_X, CHAPA_REBOTE + 0.18, COURT_W - 0.13], [COURT_L, CHAPA_REBOTE + 0.18, COURT_W - 0.13]]);
+
+// 2. Segment vertical sur la face de l'oreille gauche — centré sur x=WALL_STEP_X
+const chapaLeftFaceH = WALL_H_FRONT - CHAPA_REBOTE;
+const chapaLeftFace = box(0.18, chapaLeftFaceH, 0.12, mat.chapa);
+chapaLeftFace.position.set(WALL_STEP_X, CHAPA_REBOTE + chapaLeftFaceH/2, COURT_W - 0.06);
+scene.add(chapaLeftFace);
+addChapaLine([[WALL_STEP_X - 0.09, CHAPA_REBOTE,  COURT_W - 0.13], [WALL_STEP_X - 0.09, WALL_H_FRONT,  COURT_W - 0.13]]);
+addChapaLine([[WALL_STEP_X,        CHAPA_REBOTE,  COURT_W - 0.13], [WALL_STEP_X,        WALL_H_FRONT,  COURT_W - 0.13]]);
+addChapaLine([[WALL_STEP_X + 0.09, CHAPA_REBOTE,  COURT_W - 0.13], [WALL_STEP_X + 0.09, WALL_H_FRONT,  COURT_W - 0.13]]);
+
+// 3. Segment horizontal sur la largeur haute de l'oreille gauche (y=WALL_H_FRONT, de x=0 à x=WALL_STEP_X)
+const chapaLeftTop = box(WALL_STEP_X + 0.1, 0.18, 0.12, mat.chapa);
+chapaLeftTop.position.set(WALL_STEP_X/2, WALL_H_FRONT + 0.09, COURT_W - 0.06);
+scene.add(chapaLeftTop);
+addChapaLine([[0, WALL_H_FRONT,        COURT_W - 0.13], [WALL_STEP_X, WALL_H_FRONT,        COURT_W - 0.13]]);
+addChapaLine([[0, WALL_H_FRONT + 0.09, COURT_W - 0.13], [WALL_STEP_X, WALL_H_FRONT + 0.09, COURT_W - 0.13]]);
+addChapaLine([[0, WALL_H_FRONT + 0.18, COURT_W - 0.13], [WALL_STEP_X, WALL_H_FRONT + 0.18, COURT_W - 0.13]]);
+
+// ── Chapa mur DROIT (z=0) à hauteur CHAPA_REBOTE (5,50 m) ──
+// 1. Partie principale : de WALL_STEP_X à COURT_L
+const chapaRightMain = COURT_L - WALL_STEP_X;
+const chapaRightWall = box(chapaRightMain, 0.18, 0.12, mat.chapa);
+chapaRightWall.position.set(WALL_STEP_X + chapaRightMain/2, CHAPA_REBOTE + 0.09, 0.06);
+scene.add(chapaRightWall);
+addChapaLine([[WALL_STEP_X, CHAPA_REBOTE,        0.13], [COURT_L, CHAPA_REBOTE,        0.13]]);
+addChapaLine([[WALL_STEP_X, CHAPA_REBOTE + 0.09, 0.13], [COURT_L, CHAPA_REBOTE + 0.09, 0.13]]);
+addChapaLine([[WALL_STEP_X, CHAPA_REBOTE + 0.18, 0.13], [COURT_L, CHAPA_REBOTE + 0.18, 0.13]]);
+
+// 2. Segment vertical sur la face de l'oreille droite — centré sur x=WALL_STEP_X
+const chapaRightFaceH = WALL_H_FRONT - CHAPA_REBOTE;
+const chapaRightFace = box(0.18, chapaRightFaceH, 0.12, mat.chapa);
+chapaRightFace.position.set(WALL_STEP_X, CHAPA_REBOTE + chapaRightFaceH/2, 0.06);
+scene.add(chapaRightFace);
+addChapaLine([[WALL_STEP_X - 0.09, CHAPA_REBOTE,  0.13], [WALL_STEP_X - 0.09, WALL_H_FRONT,  0.13]]);
+addChapaLine([[WALL_STEP_X,        CHAPA_REBOTE,  0.13], [WALL_STEP_X,        WALL_H_FRONT,  0.13]]);
+addChapaLine([[WALL_STEP_X + 0.09, CHAPA_REBOTE,  0.13], [WALL_STEP_X + 0.09, WALL_H_FRONT,  0.13]]);
+
+// 3. Segment horizontal sur la largeur haute de l'oreille droite (y=WALL_H_FRONT, de x=0 à x=WALL_STEP_X)
+const chapaRightTop = box(WALL_STEP_X + 0.1, 0.18, 0.12, mat.chapa);
+chapaRightTop.position.set(WALL_STEP_X/2, WALL_H_FRONT + 0.09, 0.06);
+scene.add(chapaRightTop);
+addChapaLine([[0, WALL_H_FRONT,        0.13], [WALL_STEP_X, WALL_H_FRONT,        0.13]]);
+addChapaLine([[0, WALL_H_FRONT + 0.09, 0.13], [WALL_STEP_X, WALL_H_FRONT + 0.09, 0.13]]);
+addChapaLine([[0, WALL_H_FRONT + 0.18, 0.13], [WALL_STEP_X, WALL_H_FRONT + 0.18, 0.13]]);
+
+// ── Enregistrement des zones pour l'alerte de collision ──
+// Frontis bas (x≈0) — bande Y autour de CHAPA_LOW
+registerChapaZone({ label: '⚡ CHAPA — Frontis bas (0,80 m)', type: 'chapa',
+  axis: 'x', axisVal: 0, tol: 0.28,
+  yMin: CHAPA_LOW - 0.05, yMax: CHAPA_LOW + 0.26,
+  t1Axis: 'z', t1Min: 0, t1Max: COURT_W });
+// Frontis haut (x≈0) — bande Y autour de CHAPA_HIGH
+registerChapaZone({ label: '⚡ CHAPA — Frontis haut (8,50 m)', type: 'chapa',
+  axis: 'x', axisVal: 0, tol: 0.28,
+  yMin: CHAPA_HIGH - 0.05, yMax: CHAPA_HIGH + 0.24,
+  t1Axis: 'z', t1Min: 0, t1Max: COURT_W });
+// Rebote (x≈COURT_L)
+registerChapaZone({ label: '⚡ CHAPA — Rebote (5,50 m)', type: 'chapa',
+  axis: 'x', axisVal: COURT_L, tol: 0.28,
+  yMin: CHAPA_REBOTE - 0.05, yMax: CHAPA_REBOTE + 0.24,
+  t1Axis: 'z', t1Min: 0, t1Max: COURT_W });
+// Mur gauche principal (z≈COURT_W), partie longue
+registerChapaZone({ label: '⚡ CHAPA — Mur gauche (5,50 m)', type: 'chapa',
+  axis: 'z', axisVal: COURT_W, tol: 0.28,
+  yMin: CHAPA_REBOTE - 0.05, yMax: CHAPA_REBOTE + 0.24,
+  t1Axis: 'x', t1Min: WALL_STEP_X, t1Max: COURT_L });
+// Oreille gauche — face verticale (x≈WALL_STEP_X, près de z=COURT_W)
+registerChapaZone({ label: '⚡ CHAPA — Oreille gauche verticale', type: 'chapa',
+  axis: 'x', axisVal: WALL_STEP_X, tol: 0.32,
+  yMin: CHAPA_REBOTE - 0.05, yMax: WALL_H_FRONT + 0.1,
+  t1Axis: 'z', t1Min: COURT_W - 0.35, t1Max: COURT_W + 0.35 });
+// Oreille gauche — bandeau horizontal (y≈WALL_H_FRONT, x in [0, WALL_STEP_X])
+registerChapaZone({ label: '⚡ CHAPA — Oreille gauche (8,50 m)', type: 'chapa',
+  axis: 'y', axisVal: WALL_H_FRONT, tol: 0.28,
+  yMin: WALL_H_FRONT - 0.05, yMax: WALL_H_FRONT + 0.30,
+  t1Axis: 'x', t1Min: 0, t1Max: WALL_STEP_X,
+  t2Axis: 'z', t2Min: COURT_W - 0.35, t2Max: COURT_W + 0.35 });
+// Mur droit principal (z≈0), partie longue
+registerChapaZone({ label: '⚡ CHAPA — Mur droit / Vitre (5,50 m)', type: 'chapa',
+  axis: 'z', axisVal: 0, tol: 0.28,
+  yMin: CHAPA_REBOTE - 0.05, yMax: CHAPA_REBOTE + 0.24,
+  t1Axis: 'x', t1Min: WALL_STEP_X, t1Max: COURT_L });
+// Oreille droite — face verticale (x≈WALL_STEP_X, près de z=0)
+registerChapaZone({ label: '⚡ CHAPA — Oreille droite verticale', type: 'chapa',
+  axis: 'x', axisVal: WALL_STEP_X, tol: 0.32,
+  yMin: CHAPA_REBOTE - 0.05, yMax: WALL_H_FRONT + 0.1,
+  t1Axis: 'z', t1Min: -0.35, t1Max: 0.35 });
+// Oreille droite — bandeau horizontal (y≈WALL_H_FRONT, x in [0, WALL_STEP_X])
+registerChapaZone({ label: '⚡ CHAPA — Oreille droite (8,50 m)', type: 'chapa',
+  axis: 'y', axisVal: WALL_H_FRONT, tol: 0.28,
+  yMin: WALL_H_FRONT - 0.05, yMax: WALL_H_FRONT + 0.30,
+  t1Axis: 'x', t1Min: 0, t1Max: WALL_STEP_X,
+  t2Axis: 'z', t2Min: -0.35, t2Max: 0.35 });
+// ── Sortie au-dessus du mur gauche (z≈COURT_W, y > WALL_H_BACK, partie basse)
+registerChapaZone({ label: '🚨 SORTIE — Hors mur gauche', type: 'out',
+  axis: 'z', axisVal: COURT_W, tol: 0.6,
+  yMin: WALL_H_BACK + 0.1, yMax: 999,
+  t1Axis: 'x', t1Min: WALL_STEP_X, t1Max: COURT_L });
+registerChapaZone({ label: '🚨 SORTIE — Hors vitre droite', type: 'out',
+  axis: 'z', axisVal: 0, tol: 0.6,
+  yMin: WALL_H_BACK + 0.1, yMax: 999,
+  t1Axis: 'x', t1Min: WALL_STEP_X, t1Max: COURT_L });
+
+// ── Mur GAUCHE (z=COURT_W, côté tejadillo) ──
+const lwLowerH = WALL_H_BACK - TEJ_H_INNER;
+const lw1_lower = box(WALL_STEP_X, lwLowerH, 0.3, mat.wall);
+lw1_lower.position.set(WALL_STEP_X/2, TEJ_H_INNER + lwLowerH/2, COURT_W + 0.15);
+scene.add(lw1_lower);
+
+const oreilleLeftMat = mat.oreille.clone();
+const oreilleLeft = box(WALL_STEP_X, oreilleH, 0.3, oreilleLeftMat);
+oreilleLeft.position.set(WALL_STEP_X/2, WALL_H_BACK + oreilleH/2, COURT_W + 0.15);
+scene.add(oreilleLeft);
+
+const lwH2 = WALL_H_BACK - TEJ_H_INNER;
+const lw2 = box(COURT_L - WALL_STEP_X, lwH2, 0.3, mat.wall);
+lw2.position.set(WALL_STEP_X + (COURT_L - WALL_STEP_X)/2, TEJ_H_INNER + lwH2/2, COURT_W + 0.15);
+scene.add(lw2);
+
+const stepFace = box(0.3, oreilleH, 0.3, mat.oreille);
+stepFace.position.set(WALL_STEP_X, WALL_H_BACK + oreilleH/2, COURT_W + 0.15);
+scene.add(stepFace);
+
+const stepFaceR = box(0.3, oreilleH, 0.08, mat.oreille);
+stepFaceR.position.set(WALL_STEP_X, WALL_H_BACK + oreilleH/2, -0.04);
+scene.add(stepFaceR);
+
+const lwBelowMat = mat.wall.clone();
+lwBelowMat.transparent = true; lwBelowMat.opacity = 0.3;
+const lwBelow = box(COURT_L, TEJ_H_INNER, 0.15, lwBelowMat);
+lwBelow.position.set(COURT_L/2, TEJ_H_INNER/2, COURT_W + 0.075);
+scene.add(lwBelow);
+
+// ── Mur DROIT (vitre, z=0) ──
+const rw1 = box(WALL_STEP_X, WALL_H_FRONT, 0.08, mat.glass);
+rw1.position.set(WALL_STEP_X/2, WALL_H_FRONT/2, -0.04);
+scene.add(rw1);
+const rw2 = box(COURT_L - WALL_STEP_X, WALL_H_BACK, 0.08, mat.glass);
+rw2.position.set(WALL_STEP_X + (COURT_L - WALL_STEP_X)/2, WALL_H_BACK/2, -0.04);
+scene.add(rw2);
+
+const oreilleRightMat = mat.oreille.clone();
+const oreilleRight = box(WALL_STEP_X, oreilleH, 0.08, oreilleRightMat);
+oreilleRight.position.set(WALL_STEP_X/2, WALL_H_BACK + oreilleH/2, -0.04);
+scene.add(oreilleRight);
+
+addEdge([[0, 0, 0], [COURT_L, 0, 0]]);
+addEdge([[0, WALL_H_FRONT, 0], [WALL_STEP_X, WALL_H_FRONT, 0]]);
+addEdge([[WALL_STEP_X, WALL_H_BACK, 0], [COURT_L, WALL_H_BACK, 0]]);
+addEdge([[WALL_STEP_X, WALL_H_FRONT, 0], [WALL_STEP_X, WALL_H_BACK, 0]]);
+addEdge([[0, 0, 0], [0, WALL_H_FRONT, 0]]);
+addEdge([[COURT_L, 0, 0], [COURT_L, WALL_H_BACK, 0]]);
+
+// ── Fraile (coin 45° frontis + mur droit, coin z=0) ──
+const fraileGeo = new THREE.BufferGeometry();
+fraileGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+  0, 0, FRAILE_W,           FRAILE_W, 0, 0,           FRAILE_W, WALL_H_FRONT, 0,
+  0, 0, FRAILE_W,           FRAILE_W, WALL_H_FRONT, 0, 0, WALL_H_FRONT, FRAILE_W,
+], 3));
+fraileGeo.computeVertexNormals();
+const fraileMesh = new THREE.Mesh(fraileGeo, mat.fraile);
+fraileMesh.castShadow = true;
+scene.add(fraileMesh);
+addEdge([[0, 0, FRAILE_W], [FRAILE_W, 0, 0]], 0xd4a040, 0.6);
+addEdge([[0, WALL_H_FRONT, FRAILE_W], [FRAILE_W, WALL_H_FRONT, 0]], 0xd4a040, 0.6);
+
+// ── Tejadillo (mur gauche, z=COURT_W) ──
+const tejSolidFront = box(NET_START, TEJ_H_OUTER, 0.1, mat.tejWall);
+tejSolidFront.position.set(NET_START/2, TEJ_H_OUTER/2, TEJ_Z);
+scene.add(tejSolidFront);
+
+const tejSolidBackLen = COURT_L - NET_END;
+const tejSolidBack = box(tejSolidBackLen, TEJ_H_OUTER, 0.1, mat.tejWall);
+tejSolidBack.position.set(NET_END + tejSolidBackLen/2, TEJ_H_OUTER/2, TEJ_Z);
+scene.add(tejSolidBack);
+
+const netLen = NET_END - NET_START;
+const tejWallBot = box(netLen, 0.95, 0.1, mat.tejWall);
+tejWallBot.position.set(NET_START + netLen/2, 0.475, TEJ_Z);
+scene.add(tejWallBot);
+
+const tejWallTop = box(netLen, 0.1, 0.1, mat.tejWall);
+tejWallTop.position.set(NET_START + netLen/2, 1.85, TEJ_Z);
+scene.add(tejWallTop);
+
+for (const x of POLE_X) {
+  const pole = box(0.1, TEJ_H_OUTER, 0.1, mat.tejWall);
+  pole.position.set(x, TEJ_H_OUTER/2, TEJ_Z);
+  scene.add(pole);
+}
+
+const netGroup = new THREE.Group();
+const netLineMat = new THREE.LineBasicMaterial({ color: 0x9060b0, transparent: true, opacity: 0.4 });
+for (let x = NET_START; x <= NET_END; x += 0.6) {
+  netGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(x, 0.95, TEJ_Z), new THREE.Vector3(x, 1.80, TEJ_Z)
+  ]), netLineMat));
+}
+for (let y = 0.95; y <= 1.80; y += 0.15) {
+  netGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(NET_START, y, TEJ_Z), new THREE.Vector3(NET_END, y, TEJ_Z)
+  ]), netLineMat));
+}
+scene.add(netGroup);
+
+const netPlaneMat = mat.net.clone();
+netPlaneMat.emissive = new THREE.Color(0x000000);
+const netPlane = box(netLen, 0.85, 0.02, netPlaneMat);
+netPlane.position.set(NET_START + netLen/2, 0.95 + 0.425, TEJ_Z);
+scene.add(netPlane);
+
+// Toit incliné principal
+const roofGeo = new THREE.BufferGeometry();
+roofGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+  0, TEJ_H_OUTER, TEJ_Z,         COURT_L, TEJ_H_OUTER, TEJ_Z,         COURT_L, TEJ_H_INNER, COURT_W,
+  0, TEJ_H_OUTER, TEJ_Z,         COURT_L, TEJ_H_INNER, COURT_W,       0, TEJ_H_INNER, COURT_W,
+], 3));
+roofGeo.computeVertexNormals();
+const roofMesh = new THREE.Mesh(roofGeo, mat.tejRoof);
+roofMesh.castShadow = true; roofMesh.receiveShadow = true;
+scene.add(roofMesh);
+
+addEdge([[0, TEJ_H_OUTER, TEJ_Z], [COURT_L, TEJ_H_OUTER, TEJ_Z]], 0x50a060, 0.6);
+addEdge([[0, TEJ_H_INNER, COURT_W], [COURT_L, TEJ_H_INNER, COURT_W]], 0x50a060, 0.6);
+addEdge([[0, TEJ_H_OUTER, TEJ_Z], [0, TEJ_H_INNER, COURT_W]], 0x50a060, 0.6);
+addEdge([[COURT_L, TEJ_H_OUTER, TEJ_Z], [COURT_L, TEJ_H_INNER, COURT_W]], 0x50a060, 0.6);
+
+// ── Tejadillo du rebote (mur du fond, x=COURT_L) ──
+const REB_TEJ_D = 1.0;
+const rebTejX = COURT_L - REB_TEJ_D;
+const REB_SOLID = 1.0;
+const rebNetStart = REB_SOLID;
+const rebNetEnd = rebNetStart + 6.0;
+const rebNetW = rebNetEnd - rebNetStart;
+
+const rebSolidL = box(0.1, TEJ_H_OUTER, REB_SOLID, mat.tejWall);
+rebSolidL.position.set(rebTejX, TEJ_H_OUTER/2, REB_SOLID/2);
+scene.add(rebSolidL);
+
+const rebSolidRLen = COURT_W - rebNetEnd;
+const rebSolidR = box(0.1, TEJ_H_OUTER, rebSolidRLen, mat.tejWall);
+rebSolidR.position.set(rebTejX, TEJ_H_OUTER/2, rebNetEnd + rebSolidRLen/2);
+scene.add(rebSolidR);
+
+const rebTejBot = box(0.1, 0.95, rebNetW, mat.tejWall);
+rebTejBot.position.set(rebTejX, 0.475, rebNetStart + rebNetW/2);
+scene.add(rebTejBot);
+
+const rebTejTop = box(0.1, 0.1, rebNetW, mat.tejWall);
+rebTejTop.position.set(rebTejX, 1.85, rebNetStart + rebNetW/2);
+scene.add(rebTejTop);
+
+const rebNetMat = new THREE.LineBasicMaterial({ color: 0x9060b0, transparent: true, opacity: 0.4 });
+for (let z = rebNetStart; z <= rebNetEnd; z += 0.6) {
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(rebTejX, 0.95, z), new THREE.Vector3(rebTejX, 1.80, z)
+  ]), rebNetMat));
+}
+for (let y = 0.95; y <= 1.80; y += 0.15) {
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(rebTejX, y, rebNetStart), new THREE.Vector3(rebTejX, y, rebNetEnd)
+  ]), rebNetMat));
+}
+const rebNetPlaneMat = mat.net.clone();
+rebNetPlaneMat.emissive = new THREE.Color(0x000000);
+const rebNetPlane = box(0.02, 0.85, rebNetW, rebNetPlaneMat);
+rebNetPlane.position.set(rebTejX, 0.95 + 0.425, rebNetStart + rebNetW/2);
+scene.add(rebNetPlane);
+
+function setNetHighlight(netType, on) {
+  const m = netType === 'main' ? netPlane.material : rebNetPlane.material;
+  m.color.set(on ? 0xcaa2ff : 0x9060b0);
+  m.emissive.set(on ? 0x5a2f8a : 0x000000);
+  m.opacity = on ? 0.65 : 0.35;
+}
+
+function resetNetHighlights() {
+  setNetHighlight('main', false);
+  setNetHighlight('rebote', false);
+}
+
+function setOreilleHighlight(side, on) {
+  const m = side === 'left' ? oreilleLeftMat : oreilleRightMat;
+  m.color.set(on ? 0xff4444 : 0x882828);
+  m.emissive.set(on ? 0xaa1111 : 0x441111);
+  m.opacity = on ? 0.9 : 1.0;
+  m.transparent = on;
+}
+
+function resetOreilleHighlights() {
+  setOreilleHighlight('left', false);
+  setOreilleHighlight('right', false);
+}
+
+for (const z of [rebNetStart, COURT_W/2, rebNetEnd]) {
+  const pole = box(0.1, TEJ_H_OUTER, 0.1, mat.tejWall);
+  pole.position.set(rebTejX, TEJ_H_OUTER/2, z);
+  scene.add(pole);
+}
+
+const rebRoofGeo = new THREE.BufferGeometry();
+rebRoofGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+  rebTejX, TEJ_H_OUTER, 0,         rebTejX, TEJ_H_OUTER, COURT_W,       COURT_L, TEJ_H_INNER, COURT_W,
+  rebTejX, TEJ_H_OUTER, 0,         COURT_L, TEJ_H_INNER, COURT_W,       COURT_L, TEJ_H_INNER, 0,
+], 3));
+rebRoofGeo.computeVertexNormals();
+const rebRoofMesh = new THREE.Mesh(rebRoofGeo, mat.tejRoof);
+rebRoofMesh.castShadow = true; rebRoofMesh.receiveShadow = true;
+scene.add(rebRoofMesh);
+
+addEdge([[rebTejX, TEJ_H_OUTER, 0], [rebTejX, TEJ_H_OUTER, COURT_W]], 0x50a060, 0.5);
+addEdge([[rebTejX, TEJ_H_OUTER, 0], [COURT_L, TEJ_H_INNER, 0]], 0x50a060, 0.5);
+addEdge([[rebTejX, TEJ_H_OUTER, COURT_W], [COURT_L, TEJ_H_INNER, COURT_W]], 0x50a060, 0.5);
+
+// ── Étiquettes 3D ──
+const courtLabels = [];
+
+function createSprite(text, pos, color = '#ffffff', size = 0.6) {
+  const canvas = document.createElement('canvas');
+  const c = canvas.getContext('2d');
+  canvas.width = 512; canvas.height = 128;
+  c.fillStyle = color;
+  c.font = 'bold 36px system-ui, sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(text, 256, 64);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.7, depthTest: false }));
+  sp.position.set(...pos);
+  sp.scale.set(size * 4, size, 1);
+  return sp;
+}
+
+function createCourtLabels() {
+  courtLabels.forEach(l => scene.remove(l));
+  courtLabels.length = 0;
+
+  const defs = [
+    ['FRONTIS', [-0.8, 5, COURT_W/2], '#c06060', 0.7],
+    ['REBOTE', [COURT_L + 0.8, 3, COURT_W/2], '#5070b0', 0.6],
+    ['FRAILE', [0.5, WALL_H_FRONT + 0.5, 0.5], '#d4a040', 0.5],
+    ['TEJADILLO', [COURT_L/2, TEJ_H_INNER + 0.8, COURT_W - 0.3], '#50a060', 0.5],
+    ['SARE', [COURT_L/2, 1.4, TEJ_Z - 0.5], '#9060b0', 0.4],
+    ['MUR GAUCHE', [COURT_L/2, 4, COURT_W + 0.8], '#888888', 0.35],
+    ['OREILLE', [WALL_STEP_X/2, WALL_H_BACK + oreilleH/2, COURT_W + 0.8], '#aa3333', 0.35],
+    ['OREILLE', [WALL_STEP_X/2, WALL_H_BACK + oreilleH/2, -0.8], '#aa3333', 0.35],
+    ['7,25m', [7.25, 0.05, -0.6], '#ffffff', 0.3],
+    ['10m', [10, 0.05, -0.6], '#ffffff', 0.3],
+    ['15m', [15, 0.05, -0.6], '#ffffff', 0.3],
+    ['17,5m', [17.5, 0.05, -0.6], '#ffffff', 0.3],
+    ['20m', [20, 0.05, -0.6], '#ffffff', 0.3],
+    // Labels chapa en jaune vif, visibles depuis l'extérieur
+    ['CHAPA 0,80m', [0.5, CHAPA_LOW + 0.5, -0.7], '#ffee00', 0.30],
+    ['CHAPA 8,50m', [0.5, CHAPA_HIGH + 0.5, -0.7], '#ffee00', 0.30],
+    ['CHAPA 5,50m', [COURT_L + 0.8, CHAPA_REBOTE + 0.5, COURT_W/2], '#ffee00', 0.30],
+    ['CHAPA 5,50m', [COURT_L/2, CHAPA_REBOTE + 0.5, COURT_W + 0.8], '#ffee00', 0.30],
+    ['CHAPA 5,50m', [COURT_L/2, CHAPA_REBOTE + 0.5, -0.8], '#ffee00', 0.30],
+  ];
+  for (const [text, pos, color, size] of defs) {
+    const sp = createSprite(text, pos, color, size);
+    scene.add(sp);
+    courtLabels.push(sp);
+  }
+}
+createCourtLabels();
+
+// ── Système de dimensions ──
+const dimGroup = new THREE.Group();
+dimGroup.visible = false;
+scene.add(dimGroup);
+
+const dimLineMat = new THREE.LineBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.7 });
+
+function addDimLine(start, end, text, tickDir, tickLen = 0.3) {
+  const s = new THREE.Vector3(...start);
+  const e = new THREE.Vector3(...end);
+  const td = new THREE.Vector3(...tickDir).normalize().multiplyScalar(tickLen);
+
+  dimGroup.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([s, e]), dimLineMat
+  ));
+  dimGroup.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([s.clone().sub(td), s.clone().add(td)]), dimLineMat
+  ));
+  dimGroup.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([e.clone().sub(td), e.clone().add(td)]), dimLineMat
+  ));
+
+  const mid = s.clone().add(e).multiplyScalar(0.5).add(td.clone().multiplyScalar(1.5));
+  const sp = createSprite(text, mid.toArray(), '#ffdd44', 0.35);
+  dimGroup.add(sp);
+}
+
+addDimLine([0, 0.1, -1.2], [COURT_L, 0.1, -1.2], '28,50 m', [0, 0, 1]);
+addDimLine([-1.5, 0.1, 0], [-1.5, 0.1, COURT_W], '9,30 m', [1, 0, 0]);
+addDimLine([-0.6, CHAPA_LOW, COURT_W + 0.8], [-0.6, CHAPA_HIGH, COURT_W + 0.8], '7,70 m', [1, 0, 0]);
+addDimLine([-0.6, 0, COURT_W + 0.8], [-0.6, CHAPA_LOW, COURT_W + 0.8], '0,80 m', [1, 0, 0]);
+addDimLine([-1.2, 0, -1.2], [-1.2, FRONTIS_H, -1.2], '~10,00 m', [1, 0, 0], 0.2);
+addDimLine([COURT_L/2, TEJ_H_INNER + 1.2, TEJ_Z], [COURT_L/2, TEJ_H_INNER + 1.2, COURT_W], '1,30 m', [0, 1, 0], 0.2);
+addDimLine([COURT_L + 1.5, 0, TEJ_Z], [COURT_L + 1.5, TEJ_H_OUTER, TEJ_Z], '1,90 m', [1, 0, 0], 0.2);
+addDimLine([COURT_L + 2.5, 0, COURT_W], [COURT_L + 2.5, TEJ_H_INNER, COURT_W], '2,25 m', [1, 0, 0], 0.2);
+addDimLine([0, -0.3, FRAILE_W], [FRAILE_W, -0.3, 0], '0,47 m', [0, 1, 0], 0.15);
+addDimLine([COURT_L + 1, 0, -0.8], [COURT_L + 1, CHAPA_REBOTE, -0.8], '5,50 m', [1, 0, 0], 0.2);
+addDimLine([WALL_STEP_X + 0.5, 0, -1.2], [WALL_STEP_X + 0.5, WALL_H_FRONT, -1.2], '8,50 m', [1, 0, 0], 0.2);
+addDimLine([COURT_L - 2, 0, -1.2], [COURT_L - 2, WALL_H_BACK, -1.2], '5,50 m', [1, 0, 0], 0.2);
+
+// ── Définitions des coups ──
+const shotKeys = ['saque', 'saqueh', 'plche', 'dmd', 'avdj'];
+
+const shotDefs = {
+  saque: {
+    color: '#4a7cff',
+    pos: [15.5, 0.8, 5], horiz: 7, vert: 25, strength: 20,
+    playerPos: [15.5, 0, 5],
+    name: 'Le but', sub: 'Fem',
+    desc: 'Féminines : but depuis la ligne 4. Servez vous de la planche pour alonger votre but.',
+  },
+  saqueh: {
+    color: '#ff6b6b',
+    pos: [18, 0.8, 5], horiz: 3.5, vert: 25, strength: 25,
+    playerPos: [18, 0, 5],
+    name: 'Le but', sub: 'Hom',
+    desc: 'Gars : ligne 5. Un bon but doit rester collé à gauche pour compliquer le renvoi.',
+  },
+    plche: {
+    color: '#ff6b6b',
+    pos: [7, 0.8, 6], horiz: 7, vert: 25, strength: 19,
+    playerPos: [7, 0, 6],
+    name: 'La planche', sub: 'Passer le joueur avant',
+    desc: 'Construire un point en écartant les lignes avant/arrière.',
+  },
+  dmd: {
+    color: '#ff6b6b',
+    pos: [15, 0.8, 4.5], horiz: -34, vert: 16, strength: 25,
+    playerPos: [15, 0, 4.5],
+    name: 'Deux murs', sub: 'Dos paredes',
+    desc: 'Deux murs (direct en zone haute de la 4 ou indirect avec rebond au sol pour atteindre le filet).'
+  },
+    avdj: {
+    color: '#ff6b6b',
+    pos: [15, 0.8, 4.5], horiz: -34, vert: 16, strength: 25,
+    playerPos: [15, 0, 4.5],
+    name: 'A vous de jouer', sub: 'Amusez-vous!',
+    desc: 'Cliquez sur <mark>Simuler vos coups</mark>, pour ajuster vos meilleurs coups.'
+  },
+
+};
+
+// ── Construction du panneau de coups ──
+function buildShotPanel() {
+  const panel = document.getElementById('panel');
+  panel.innerHTML = '';
+  shotKeys.forEach(key => {
+    const s = shotDefs[key];
+    const btn = document.createElement('div');
+    btn.className = 'shot-btn' + (key === currentShot ? ' active' : '');
+    btn.dataset.shot = key;
+    btn.style.setProperty('--c', s.color);
+    btn.innerHTML = `<div class="name">${s.name} <span class="es">\u2014 ${s.sub}</span></div><div class="desc">${s.desc}</div>`;
+    btn.addEventListener('click', () => selectShot(key));
+    panel.appendChild(btn);
+  });
+}
+
+// ── Simulation physique ──
+const GRAVITE = 9.81;                   // Accélération gravitationnelle (m/s²)
+const RESTITUTION_MUR = 0.65;           // Coefficient de rebond sur les murs (frontis, rebote, mur vitre, mur gauche)
+const FRICTION_MUR = 0.98;              // Coefficient de friction tangentielle sur les murs
+const REBOND_SOL = 0.50;                // Coefficient de rebond sur le sol
+const FRICTION_SOL = 0.93;             // Coefficient de friction tangentielle sur le sol
+const REBOND_TOIT = REBOND_SOL * 0.80; // Coefficient de rebond sur le toit incliné principal (-25 % par rapport au sol)
+const PAS_SIMULATION = 0.002;           // Pas de temps de la simulation (secondes)
+const DUREE_MAX_SIMULATION = 8;         // Durée maximale simulée (secondes)
+const VITESSE_MIN = 0.4;               // Vitesse minimale avant arrêt de la balle (m/s)
+const ENREGISTRER_TOUS_LES = 10;       // Fréquence d'enregistrement des points de trajectoire
+const FILET_Y_MIN = 0.95;              // Hauteur minimale du filet (sare) en mètres
+const FILET_Y_MAX = 1.80;              // Hauteur maximale du filet (sare) en mètres
+const RAYON_BALLE = 0.12;              // Rayon de la balle (mètres)
+
+// Alias internes (conservés pour compatibilité avec le reste du code)
+const GRAVITY = GRAVITE;
+const RESTITUTION = RESTITUTION_MUR;
+const WALL_FRIC = FRICTION_MUR;
+const FLOOR_REST = REBOND_SOL;
+const FLOOR_FRIC = FRICTION_SOL;
+const SIM_DT = PAS_SIMULATION;
+const MAX_SIM_TIME = DUREE_MAX_SIMULATION;
+const MIN_SPEED = VITESSE_MIN;
+const RECORD_EVERY = ENREGISTRER_TOUS_LES;
+const NET_Y_MIN = FILET_Y_MIN;
+const NET_Y_MAX = FILET_Y_MAX;
+const BALL_R = RAYON_BALLE;
+
+const ROOF_DZ = COURT_W - TEJ_Z;
+const ROOF_DY = TEJ_H_INNER - TEJ_H_OUTER;
+const ROOF_N_LEN = Math.sqrt(ROOF_DY * ROOF_DY + ROOF_DZ * ROOF_DZ);
+const ROOF_NORMAL = new THREE.Vector3(0, ROOF_DZ / ROOF_N_LEN, -ROOF_DY / ROOF_N_LEN);
+
+function roofY(z) {
+  return TEJ_H_OUTER + (z - TEJ_Z) / ROOF_DZ * ROOF_DY;
+}
+
+// ── Conversion angles ↔ vecteur direction ──
+const RAD = Math.PI / 180;
+const DEG = 180 / Math.PI;
+
+function dirToAngles(dir) {
+  const d = new THREE.Vector3(...dir).normalize();
+  const vert = Math.asin(d.y) * DEG;
+  const horiz = Math.atan2(d.z, -d.x) * DEG;
+  return { horiz: Math.round(horiz * 10) / 10, vert: Math.round(vert * 10) / 10 };
+}
+
+function anglesToDir(hDeg, vDeg) {
+  const h = hDeg * RAD, v = vDeg * RAD;
+  return [-Math.cos(v) * Math.cos(h), Math.sin(v), Math.cos(v) * Math.sin(h)];
+}
+
+function simulateShot(shot) {
+  const dir = anglesToDir(shot.horiz, shot.vert);
+  const d = new THREE.Vector3(...dir).normalize();
+  let vx = d.x * shot.strength, vy = d.y * shot.strength, vz = d.z * shot.strength;
+  let x = shot.pos[0], y = shot.pos[1], z = shot.pos[2];
+
+  const points = [new THREE.Vector3(x, y, z)];
+  const breaks = [0];
+  let netHit = null;
+  let ceilingHit = false;
+  let oreilleHit = null;
+  let step = 0;
+  const maxSteps = Math.ceil(MAX_SIM_TIME / SIM_DT);
+
+  for (let i = 0; i < maxSteps; i++) {
+    const prevX = x, prevY = y, prevZ = z;
+    vy -= GRAVITY * SIM_DT;
+    x += vx * SIM_DT;
+    y += vy * SIM_DT;
+    z += vz * SIM_DT;
+    step++;
+
+    let hit = false;
+
+    // Sare principal (z = TEJ_Z)
+    const dzMain = z - prevZ;
+    if (Math.abs(dzMain) > 1e-8) {
+      const mainPlane = TEJ_Z;
+      const crossedMain = (prevZ - (mainPlane - BALL_R)) * (z - (mainPlane - BALL_R)) <= 0
+        || (prevZ - (mainPlane + BALL_R)) * (z - (mainPlane + BALL_R)) <= 0;
+      if (crossedMain) {
+        const t = Math.max(0, Math.min(1, (mainPlane - prevZ) / dzMain));
+        const cx = prevX + (x - prevX) * t;
+        const cy = prevY + (y - prevY) * t;
+        if (cx >= NET_START && cx <= NET_END && cy >= NET_Y_MIN && cy <= NET_Y_MAX) {
+          x = cx; y = cy; z = mainPlane;
+          points.push(new THREE.Vector3(x, y, z));
+          breaks.push(points.length);
+          netHit = { net: 'main', index: points.length - 1 };
+          break;
+        }
+      }
+    }
+
+    // Sare du rebote (x = rebTejX)
+    const dxReb = x - prevX;
+    if (Math.abs(dxReb) > 1e-8) {
+      const rebPlane = rebTejX;
+      const crossedReb = (prevX - (rebPlane - BALL_R)) * (x - (rebPlane - BALL_R)) <= 0
+        || (prevX - (rebPlane + BALL_R)) * (x - (rebPlane + BALL_R)) <= 0;
+      if (crossedReb) {
+        const t = Math.max(0, Math.min(1, (rebPlane - prevX) / dxReb));
+        const cy = prevY + (y - prevY) * t;
+        const cz = prevZ + (z - prevZ) * t;
+        if (cz >= rebNetStart && cz <= rebNetEnd && cy >= NET_Y_MIN && cy <= NET_Y_MAX) {
+          x = rebPlane; y = cy; z = cz;
+          points.push(new THREE.Vector3(x, y, z));
+          breaks.push(points.length);
+          netHit = { net: 'rebote', index: points.length - 1 };
+          break;
+        }
+      }
+    }
+
+    // Fraile (coin à 45°)
+    if (x >= 0 && x < FRAILE_W && z >= 0 && z < FRAILE_W && x + z < FRAILE_W && y < WALL_H_FRONT) {
+      const pen = FRAILE_W - (x + z);
+      x += pen / 2; z += pen / 2;
+      const tvx = vx, tvz = vz;
+      vx = -tvz * RESTITUTION;
+      vz = -tvx * RESTITUTION;
+      vy *= RESTITUTION;
+      hit = true;
+    }
+
+    // Frontis (x = 0)
+    if (x < 0) {
+      x = -x;
+      vx = Math.abs(vx) * RESTITUTION;
+      vy *= WALL_FRIC; vz *= WALL_FRIC;
+      hit = true;
+    }
+
+    // Rebote (x = COURT_L)
+    if (x > COURT_L) {
+      x = 2 * COURT_L - x;
+      vx = -Math.abs(vx) * RESTITUTION;
+      vy *= WALL_FRIC; vz *= WALL_FRIC;
+      hit = true;
+    }
+
+    // Mur vitre (z = 0)
+    if (z < 0) {
+      z = -z;
+      vz = Math.abs(vz) * RESTITUTION;
+      vx *= WALL_FRIC; vy *= WALL_FRIC;
+      // Oreille droite : x < WALL_STEP_X et y > WALL_H_BACK
+      if (!oreilleHit && x < WALL_STEP_X && y > WALL_H_BACK) {
+        points.push(new THREE.Vector3(x, y, z));
+        breaks.push(points.length);
+        oreilleHit = { side: 'right', index: points.length - 1 };
+      }
+      hit = true;
+    }
+
+    // Côté gauche : tejadillo, toit et mur supérieur
+    if (z > TEJ_Z) {
+      if (y < TEJ_H_OUTER) {
+        z = 2 * TEJ_Z - z;
+        vz = -Math.abs(vz) * RESTITUTION;
+        vx *= WALL_FRIC; vy *= WALL_FRIC;
+        // Oreille gauche : x < WALL_STEP_X et y > WALL_H_BACK (mur haut z=COURT_W)
+        if (!oreilleHit && z > COURT_W - 0.5 && x < WALL_STEP_X && y > WALL_H_BACK) {
+          points.push(new THREE.Vector3(x, y, z));
+          breaks.push(points.length);
+          oreilleHit = { side: 'left', index: points.length - 1 };
+        }
+        hit = true;
+      } else if (z > COURT_W) {
+        z = 2 * COURT_W - z;
+        vz = -Math.abs(vz) * RESTITUTION;
+        vx *= WALL_FRIC; vy *= WALL_FRIC;
+        // Oreille gauche : x < WALL_STEP_X et y > WALL_H_BACK
+        if (!oreilleHit && x < WALL_STEP_X && y > WALL_H_BACK) {
+          points.push(new THREE.Vector3(x, y, z));
+          breaks.push(points.length);
+          oreilleHit = { side: 'left', index: points.length - 1 };
+        }
+        hit = true;
+      } else {
+        const ry = roofY(z);
+        if (y < ry) {
+          const dot = vx * ROOF_NORMAL.x + vy * ROOF_NORMAL.y + vz * ROOF_NORMAL.z;
+          if (dot < 0) {
+            // Composante normale (perpendiculaire au plan incliné)
+            const vnx = dot * ROOF_NORMAL.x;
+            const vny = dot * ROOF_NORMAL.y;
+            const vnz = dot * ROOF_NORMAL.z;
+            // Composante tangentielle (parallèle au plan incliné)
+            const vtx = vx - vnx;
+            const vty = vy - vny;
+            const vtz = vz - vnz;
+            const normalSpeed = Math.abs(dot);
+            if (normalSpeed > 1.5) {
+              // Impact fort : rebond + friction tangentielle
+              vx = vtx * FRICTION_MUR - vnx * REBOND_TOIT;
+              vy = vty * FRICTION_MUR - vny * REBOND_TOIT;
+              vz = vtz * FRICTION_MUR - vnz * REBOND_TOIT;
+            } else {
+              // Impact rasant : glissement/roulement sur le plan incliné.
+              // La gravité est projetée sur le plan pour que la balle
+              // accélère le long de la pente (vers le bas-gauche du tejadillo).
+              const gDotN = -GRAVITY * ROOF_NORMAL.y;
+              const gTanX = gDotN * ROOF_NORMAL.x;
+              const gTanY = -GRAVITY - gDotN * ROOF_NORMAL.y;
+              const gTanZ = gDotN * ROOF_NORMAL.z;
+              vx = vtx * FRICTION_SOL + gTanX * SIM_DT;
+              vy = vty * FRICTION_SOL + gTanY * SIM_DT;
+              vz = vtz * FRICTION_SOL + gTanZ * SIM_DT;
+            }
+          }
+          // Colle la balle sur la surface du toit
+          y = ry + 0.01;
+          hit = true;
+        }
+      }
+    }
+
+    // Sol (y = 0)
+    if (y < 0) {
+      y = 0;
+      vy = Math.abs(vy) * FLOOR_REST;
+      vx *= FLOOR_FRIC; vz *= FLOOR_FRIC;
+      hit = true;
+    }
+
+    // Plafond (y = COURT_H)
+    if (y > COURT_H) {
+      y = COURT_H;
+      points.push(new THREE.Vector3(x, y, z));
+      breaks.push(points.length);
+      ceilingHit = true;
+      break;
+    }
+
+    if (hit) {
+      points.push(new THREE.Vector3(x, y, z));
+      breaks.push(points.length);
+    } else if (step % RECORD_EVERY === 0) {
+      points.push(new THREE.Vector3(x, y, z));
+    }
+
+    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    // Arrêt si vitesse faible : sol OU balle posée sur le toit incliné
+    const onRoof = z > TEJ_Z && z < COURT_W && y >= roofY(z) - 0.05 && y <= roofY(z) + 0.15;
+    if (i > 200 && speed < MIN_SPEED && (y < 0.15 || onRoof)) break;
+    if (points.length >= 1900) break;
+  }
+
+  if (breaks[breaks.length - 1] !== points.length)
+    breaks.push(points.length);
+  return { points, breaks, netHit, ceilingHit, oreilleHit };
+}
+
+const MAX_PTS = 2000;
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(MAX_PTS * 3), 3));
+trailGeo.setDrawRange(0, 0);
+const trailMat = new THREE.LineBasicMaterial({ color: 0x4a7cff, linewidth: 2, transparent: true, opacity: 0.8 });
+scene.add(new THREE.Line(trailGeo, trailMat));
+
+const dashGeo = new THREE.BufferGeometry();
+dashGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(MAX_PTS * 3), 3));
+dashGeo.setDrawRange(0, 0);
+const dashMat = new THREE.LineDashedMaterial({ color: 0x4a7cff, linewidth: 1, transparent: true, opacity: 0.45, dashSize: 0.3, gapSize: 0.15 });
+const dashLine = new THREE.Line(dashGeo, dashMat);
+scene.add(dashLine);
+
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(0.12, 16, 16),
+  new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x444444, roughness: 0.3 })
+);
+ball.castShadow = true;
+scene.add(ball);
+
+const glow = new THREE.Mesh(
+  new THREE.SphereGeometry(0.3, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0x4a7cff, transparent: true, opacity: 0.15 })
+);
+scene.add(glow);
+
+const impactRings = [];
+const ringGeo = new THREE.RingGeometry(0.15, 0.3, 24);
+for (let i = 0; i < 6; i++) {
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+  ring.visible = false;
+  scene.add(ring);
+  impactRings.push(ring);
+}
+
+const playerBody = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.2, 0.25, 1.36, 12),
+  new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 })
+);
+scene.add(playerBody);
+const playerHead = new THREE.Mesh(
+  new THREE.SphereGeometry(0.18, 12, 12),
+  new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 })
+);
+scene.add(playerHead);
+
+// ── Flèche de direction ──
+const arrowDir = new THREE.Vector3(-1, 0, 0);
+const arrowHelper = new THREE.ArrowHelper(arrowDir, new THREE.Vector3(0, 0, 0), 3, 0xffffff, 0.4, 0.2);
+arrowHelper.visible = false;
+scene.add(arrowHelper);
+
+// ── Plafond (y = COURT_H) ──
+const ceilingMat = new THREE.MeshStandardMaterial({
+  color: 0xcccccc, transparent: true, opacity: 0.0, side: THREE.DoubleSide,
+  emissive: 0x000000, roughness: 0.5,
+});
+const ceiling = box(COURT_L, 0.05, COURT_W, ceilingMat);
+ceiling.position.set(COURT_L / 2, COURT_H, COURT_W / 2);
+ceiling.visible = false;
+scene.add(ceiling);
+
+function setCeilingHighlight(on) {
+  ceiling.visible = on;
+  ceilingMat.opacity = on ? 0.25 : 0.0;
+  ceilingMat.color.set(on ? 0xff6666 : 0xcccccc);
+  ceilingMat.emissive.set(on ? 0x882222 : 0x000000);
+}
+
+// ── Animation ──
+let currentShot = 'saque';
+let trajectory = simulateShot(shotDefs.saque);
+let animProgress = 0;
+let animSpeed = 0.5;
+let paused = false;
+let animating = true;
+let liveApplyTimer = null;
+
+// ── Copie de travail de l'éditeur (shotDefs n'est JAMAIS modifié) ──
+// editorShot est réinitialisé depuis shotDefs à chaque changement de coup.
+// Toutes les modifications de l'éditeur n'affectent que cet objet.
+let editorShot = null;
+
+function cloneShot(src) {
+  return {
+    pos:      [...src.pos],
+    horiz:    src.horiz,
+    vert:     src.vert,
+    strength: src.strength,
+    color:    src.color,
+  };
+}
+
+function selectShot(key) {
+  currentShot = key;
+  const def = shotDefs[key];
+  // Réinitialise la copie de travail depuis la définition originale (lecture seule)
+  editorShot = cloneShot(def);
+
+  trajectory = simulateShot(editorShot);
+  trailMat.color.set(def.color);
+  dashMat.color.set(def.color);
+  glow.material.color.set(def.color);
+
+  document.querySelectorAll('.shot-btn').forEach(b => b.classList.remove('active'));
+  const active = document.querySelector(`.shot-btn[data-shot="${key}"]`);
+  if (active) active.classList.add('active');
+
+  const pp = [editorShot.pos[0], 0, editorShot.pos[2]];
+  playerBody.position.set(pp[0], 0.68, pp[2]);
+  playerHead.position.set(pp[0], 1.54, pp[2]);
+  syncEditorFromShot();
+  replay();
+}
+
+function normNum(v, fallback = 0) {
+  const n = Number.parseFloat(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function updateArrow(shot) {
+  const dir = anglesToDir(shot.horiz, shot.vert);
+  const d = new THREE.Vector3(...dir).normalize();
+  arrowHelper.position.copy(new THREE.Vector3(...shot.pos));
+  arrowHelper.setDirection(d);
+  arrowHelper.setLength(2.5, 0.4, 0.2);
+  arrowHelper.setColor(new THREE.Color(shotDefs[currentShot]?.color || '#ffffff'));
+  arrowHelper.visible = document.getElementById('editor').classList.contains('visible');
+}
+
+// Charge les champs de l'éditeur depuis editorShot (jamais depuis shotDefs)
+function syncEditorFromShot() {
+  if (!editorShot) return;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  const px = clamp(editorShot.pos[0], 1, 26.2);
+  const pz = clamp(editorShot.pos[2], 0.5, 7);
+  const py = clamp(editorShot.pos[1], 0.5, 1.7);
+  const ah = clamp(editorShot.horiz, -90, 90);
+  const av = clamp(editorShot.vert, 0, 60);
+  const st = clamp(editorShot.strength, 10, 30);
+
+  const set = (slId, valId, val, suffix) => {
+    document.getElementById(slId).value = val;
+    document.getElementById(valId).textContent = val.toFixed(suffix === '°' ? 0 : (suffix === ' m' ? 1 : 1)) + suffix;
+  };
+
+  set('sl_pos_x', 'sv_pos_x', px, ' m');
+  set('sl_pos_z', 'sv_pos_z', pz, ' m');
+  set('sl_pos_y', 'sv_pos_y', py, ' m');
+  set('sl_angle_h', 'sv_angle_h', ah, '°');
+  set('sl_angle_v', 'sv_angle_v', av, '°');
+  set('sl_strength', 'sv_strength', st, '');
+
+  updateMinimap(px, pz);
+  updateArrow(editorShot);
+}
+
+// Lit les sliders → écrit dans editorShot UNIQUEMENT
+function pullEditorValues() {
+  if (!editorShot) return null;
+  const g = id => parseFloat(document.getElementById(id).value);
+  editorShot.pos = [ g('sl_pos_x'), g('sl_pos_y'), g('sl_pos_z') ];
+  editorShot.horiz    = g('sl_angle_h');
+  editorShot.vert     = g('sl_angle_v');
+  editorShot.strength = Math.max(10, g('sl_strength'));
+  const pp = editorShot.pos;
+  playerBody.position.set(pp[0], 0.68, pp[2]);
+  playerHead.position.set(pp[0], 1.54, pp[2]);
+  updateArrow(editorShot);
+  return editorShot;
+}
+
+function applyEditorToCurrentShot(replayAnim = true) {
+  const s = pullEditorValues();
+  if (!s) return;
+  trajectory = simulateShot(s);
+  if (replayAnim) replay();
+}
+
+function scheduleLiveApply() {
+  if (!document.getElementById('ed_live').checked) return;
+  if (liveApplyTimer) clearTimeout(liveApplyTimer);
+  liveApplyTimer = setTimeout(() => {
+    applyEditorToCurrentShot(true);
+    liveApplyTimer = null;
+  }, 80);
+}
+
+// Export : exporte editorShot (état courant de l'éditeur), pas shotDefs
+function exportShotDefsJson() {
+  const payload = {
+    version: 2,
+    savedAt: new Date().toISOString(),
+    note: 'Paramètres éditeur — les définitions originales du code restent inchangées.',
+    shots: { [currentShot]: {
+      pos:      editorShot.pos,
+      horiz:    editorShot.horiz,
+      vert:     editorShot.vert,
+      strength: editorShot.strength,
+    }},
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'trinquet-coups.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Import : charge dans editorShot UNIQUEMENT, shotDefs reste intact
+function importShotDefsJson(text) {
+  const parsed = JSON.parse(text);
+  const source = parsed.shots || parsed;
+  const src = source[currentShot];
+  if (!src) return;
+  if (!editorShot) editorShot = cloneShot(shotDefs[currentShot]);
+  if (Array.isArray(src.pos) && src.pos.length === 3)
+    editorShot.pos = src.pos.map(v => normNum(v, 0));
+  if (Number.isFinite(Number(src.horiz)))    editorShot.horiz    = normNum(src.horiz, 0);
+  if (Number.isFinite(Number(src.vert)))     editorShot.vert     = normNum(src.vert, 20);
+  if (Number.isFinite(Number(src.strength))) editorShot.strength = Math.max(0.1, Number(src.strength));
+  syncEditorFromShot();
+  trajectory = simulateShot(editorShot);
+  replay();
+}
+
+function replay() {
+  animProgress = 0;
+  animating = true;
+  paused = false;
+  document.getElementById('pause').textContent = 'Pause';
+  impactRings.forEach(r => r.visible = false);
+  resetZones();
+  resetNetHighlights();
+  resetOreilleHighlights();
+  setCeilingHighlight(false);
+  resetAlerts();
+}
+
+function updateTrajectory(dt) {
+  if (!animating || paused) return;
+  const total = trajectory.points.length;
+  const speed = (total / 2.5) * animSpeed;
+  animProgress = Math.min(animProgress + dt * speed, total - 1);
+
+  const idx = Math.floor(animProgress);
+  const frac = animProgress - idx;
+  const p0 = trajectory.points[Math.min(idx, total - 1)];
+  const p1 = trajectory.points[Math.min(idx + 1, total - 1)];
+  ball.position.lerpVectors(p0, p1, frac);
+  glow.position.copy(ball.position);
+  checkZoneHit(ball.position);
+  checkChapaZoneHit(ball.position, idx);
+  if (trajectory.netHit && idx >= trajectory.netHit.index) {
+    setNetHighlight(trajectory.netHit.net, true);
+  }
+  if (trajectory.oreilleHit && idx >= trajectory.oreilleHit.index) {
+    setOreilleHighlight(trajectory.oreilleHit.side, true);
+  }
+  if (trajectory.ceilingHit && idx >= trajectory.points.length - 2) {
+    setCeilingHighlight(true);
+  }
+
+  const firstBreak = trajectory.breaks[1] || total;
+  const solidEnd = Math.min(idx + 1, firstBreak);
+  const posAttr = trailGeo.getAttribute('position');
+  for (let i = 0; i < solidEnd && i < MAX_PTS; i++) {
+    const pt = trajectory.points[i];
+    posAttr.setXYZ(i, pt.x, pt.y, pt.z);
+  }
+  posAttr.needsUpdate = true;
+  trailGeo.setDrawRange(0, solidEnd);
+
+  if (idx >= firstBreak) {
+    const dashEnd = Math.min(idx + 1, total);
+    const dashAttr = dashGeo.getAttribute('position');
+    let di = 0;
+    for (let i = firstBreak; i < dashEnd && di < MAX_PTS; i++, di++) {
+      const pt = trajectory.points[i];
+      dashAttr.setXYZ(di, pt.x, pt.y, pt.z);
+    }
+    dashAttr.needsUpdate = true;
+    dashGeo.setDrawRange(0, di);
+    dashLine.computeLineDistances();
+  } else {
+    dashGeo.setDrawRange(0, 0);
+  }
+
+  const breaks = trajectory.breaks;
+  for (let i = 1; i < breaks.length - 1 && i - 1 < impactRings.length; i++) {
+    const bIdx = breaks[i] - 1;
+    if (idx >= bIdx) {
+      const ring = impactRings[i - 1];
+      ring.visible = true;
+      const pt = trajectory.points[bIdx];
+      ring.position.set(pt.x, pt.y, pt.z);
+      if (pt.x < 0.5) ring.rotation.set(0, Math.PI/2, 0);
+      else if (pt.z > W - 0.5) ring.rotation.set(0, 0, 0);
+      else if (pt.z < 0.5) ring.rotation.set(0, 0, 0);
+      else if (pt.y < 0.1) ring.rotation.set(Math.PI/2, 0, 0);
+      else ring.lookAt(ball.position);
+      const age = (animProgress - bIdx) / total;
+      ring.material.opacity = Math.max(0, 0.6 - age * 3);
+      const s = 1 + age * 4;
+      ring.scale.set(s, s, s);
+    }
+  }
+  if (animProgress >= total - 1) animating = false;
+}
+
+// ── Préréglages de caméra ──
+const cameraPresets = {
+  default: { pos: [30, 13, 0],      target: [10, 2, 5] },
+  top:     { pos: [14, 32, 4.65],    target: [14, 0, 4.65] },
+  side:    { pos: [14, 5, -10],      target: [14, 3, 4.65] },
+  player:  { pos: [24, 2, W - 2.3],  target: [5, 2, W - 5] },
+  frontis: { pos: [-6, 4, 4.65],     target: [14, 2, 4.65] },
+  gallery: { pos: [14, 1.5, W + 3],  target: [14, 2, 4] },
+};
+
+let camTarget = null;
+let camTween = 0;
+
+document.querySelectorAll('#cameras button[data-cam]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const preset = cameraPresets[btn.dataset.cam];
+    if (!preset) return;
+    camTarget = {
+      pos: new THREE.Vector3(...preset.pos),
+      target: new THREE.Vector3(...preset.target),
+      startPos: camera.position.clone(),
+      startTarget: controls.target.clone(),
+    };
+    camTween = 0;
+    document.querySelectorAll('#cameras button[data-cam]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+function updateCamera(dt) {
+  if (!camTarget) return;
+  camTween = Math.min(camTween + dt * 1.8, 1);
+  const ct = 1 - Math.pow(1 - camTween, 3);
+  camera.position.lerpVectors(camTarget.startPos, camTarget.pos, ct);
+  controls.target.lerpVectors(camTarget.startTarget, camTarget.target, ct);
+  if (camTween >= 1) camTarget = null;
+}
+
+// ── Contrôles ──
+document.getElementById('replay').addEventListener('click', replay);
+
+document.getElementById('speed').addEventListener('click', () => {
+  const speeds = [0.25, 0.5];
+  const idx = speeds.indexOf(animSpeed);
+  animSpeed = speeds[(idx + 1) % speeds.length];
+  document.getElementById('speed').textContent = `Vitesse : ${animSpeed}x`;
+});
+
+document.getElementById('pause').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('pause').textContent = paused ? 'Reprendre' : 'Pause';
+});
+
+document.getElementById('dimBtn').addEventListener('click', () => {
+  dimGroup.visible = !dimGroup.visible;
+  document.getElementById('dimBtn').classList.toggle('active', dimGroup.visible);
+});
+
+document.getElementById('editToggle').addEventListener('click', () => {
+  const ed = document.getElementById('editor');
+  const show = !ed.classList.contains('visible');
+  ed.classList.toggle('visible', show);
+  document.getElementById('editToggle').classList.toggle('active', show);
+  if (show) syncEditorFromShot();
+  arrowHelper.visible = show;
+
+  // Sur mobile : masquer/afficher le panneau des coups et les caméras
+  if (window._isMobileDevice) {
+    document.getElementById('panel').style.display   = show ? 'none' : '';
+    document.getElementById('cameras').style.display = show ? 'none' : '';
+  }
+});
+
+document.getElementById('ed_apply').addEventListener('click', applyEditorToCurrentShot);
+document.getElementById('ed_export').addEventListener('click', exportShotDefsJson);
+document.getElementById('ed_import_btn').addEventListener('click', () => {
+  document.getElementById('ed_import_file').click();
+});
+document.getElementById('ed_import_file').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      importShotDefsJson(String(reader.result || ''));
+    } catch (err) {
+      alert(`JSON invalide : ${err.message}`);
+    }
+  };
+  reader.readAsText(f);
+  e.target.value = '';
+});
+
+// ── Mini-carte terrain ──
+const MM_X_MIN = 1, MM_X_MAX = 26.2;
+const MM_Z_MIN = 0.5, MM_Z_MAX = 7;
+
+function updateMinimap(x, z) {
+  const dot = document.getElementById('mmdot');
+  if (!dot) return;
+  const px = ((x - MM_X_MIN) / (MM_X_MAX - MM_X_MIN)) * 100;
+  const pz = ((z - MM_Z_MIN) / (MM_Z_MAX - MM_Z_MIN)) * 100;
+  dot.style.left = px.toFixed(1) + '%';
+  dot.style.top  = pz.toFixed(1) + '%';
+}
+
+// ── Listeners sliders ──
+function sliderInput(slId, valId, suffix, decimals) {
+  const sl = document.getElementById(slId);
+  const vl = document.getElementById(valId);
+  sl.addEventListener('input', () => {
+    const v = parseFloat(sl.value);
+    vl.textContent = v.toFixed(decimals) + suffix;
+    if (slId === 'sl_pos_x' || slId === 'sl_pos_z') {
+      updateMinimap(
+        parseFloat(document.getElementById('sl_pos_x').value),
+        parseFloat(document.getElementById('sl_pos_z').value)
+      );
+    }
+    pullEditorValues();
+    scheduleLiveApply();
+  });
+}
+
+sliderInput('sl_pos_x',   'sv_pos_x',   ' m', 1);
+sliderInput('sl_pos_z',   'sv_pos_z',   ' m', 1);
+sliderInput('sl_pos_y',   'sv_pos_y',   ' m', 2);
+sliderInput('sl_angle_h', 'sv_angle_h', '°',  0);
+sliderInput('sl_angle_v', 'sv_angle_v', '°',  0);
+sliderInput('sl_strength','sv_strength', '',   1);
+
+// ── Boucle de rendu ──
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  updateCamera(dt);
+  updateTrajectory(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Initialisation ──
+buildShotPanel();
+selectShot('saque');
+animate();
+
+// ── Détection mobile ──
+(function detectMobile() {
+  const isMobile =
+    /Android|iPhone|iPod|iPad|Mobile|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && window.innerWidth < 900);
+
+  if (!isMobile) return;
+
+  // Variable globale pour que le handler editToggle puisse la lire
+  window._isMobileDevice = true;
+
+  const banner = document.getElementById('mobile-banner');
+  const closeBtn = document.getElementById('mb-close-btn');
+
+  banner.style.display = 'block';
+  document.body.classList.add('mobile-detected');
+
+  closeBtn.addEventListener('click', () => {
+    banner.style.display = 'none';
+    document.body.classList.remove('mobile-detected');
+  });
+})();
+
+</script>
+</body>
+</html>
