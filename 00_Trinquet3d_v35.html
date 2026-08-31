@@ -181,185 +181,46 @@
     pointer-events: none;
   }
 
-  #collision-alert {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.7);
-    padding: 14px 28px; border-radius: 12px;
-    font-size: 1.05rem; font-weight: 700; letter-spacing: .04em;
-    text-align: center; pointer-events: none;
-    opacity: 0; z-index: 100;
-    transition: opacity .08s, transform .08s;
-    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    border: 2px solid; white-space: nowrap;
-  }
-  #collision-alert.show {
-    opacity: 1; transform: translate(-50%, -50%) scale(1);
-  }
-  #collision-alert.type-chapa {
-    background: rgba(255,200,0,0.18); border-color: #ffcc00;
-    color: #ffee55; box-shadow: 0 0 32px rgba(255,200,0,0.45);
-  }
-  #collision-alert.type-out {
-    background: rgba(255,60,60,0.18); border-color: #ff4444;
-    color: #ff7777; box-shadow: 0 0 32px rgba(255,60,60,0.45);
-  }
-  #flash-overlay {
-    position: fixed; inset: 0; pointer-events: none; z-index: 99;
-    opacity: 0; transition: opacity .06s;
-  }
-  #flash-overlay.flash-chapa { background: rgba(255,210,0,0.12); }
-  #flash-overlay.flash-out   { background: rgba(255,50,50,0.14); }
-
-  /* ── Copyright cartouche ── */
-  #copyright {
-    position: fixed; bottom: 10px; right: 12px;
-    z-index: 10; pointer-events: auto;
-    transition: opacity .25s;
-  }
-  #copyright .copy-cartouche {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: white;
-    border-radius: 8px;
-    padding: 5px 11px 5px 7px;
-    border: 0.5px solid rgba(0,0,0,0.15);
-    box-shadow: 0 1px 6px rgba(0,0,0,0.12);
-    cursor: default;
-  }
-  #copyright img.copy-logo {
-    height: 28px; width: auto;
-  }
-  #copyright .copy-text {
-    display: flex; flex-direction: column; line-height: 1.3;
-  }
-  #copyright .copy-name {
-    font-size: 10px; font-weight: 700; color: #1a5c1a; white-space: nowrap;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-  }
-  #copyright .copy-sub {
-    font-size: 9px; color: #555; font-style: italic; white-space: nowrap;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-  }
-  #copyright .copy-slider-panel {
-    position: absolute; bottom: 46px; right: 0;
-    background: white; border-radius: 8px;
-    border: 0.5px solid rgba(0,0,0,0.15);
-    padding: 6px 10px;
-    display: none; align-items: center; gap: 8px;
-    box-shadow: 0 1px 8px rgba(0,0,0,0.15);
-    white-space: nowrap;
-  }
-  #copyright:hover .copy-slider-panel { display: flex; }
-  #copyright .copy-slider-panel label { font-size: 10px; color: #555; font-family: 'Segoe UI', system-ui, sans-serif; }
-  #copyright .copy-slider-panel span  { font-size: 10px; color: #222; min-width: 30px; font-family: 'Segoe UI', system-ui, sans-serif; }
-  #copyright .copy-slider-panel input[type=range] {
-    width: 80px; cursor: pointer; height: 4px; accent-color: #1a5c1a;
-  }
-
-  /* ── Bannière mobile ── */
+  /* Bannière mobile */
   #mobile-banner {
     display: none;
     position: fixed; top: 0; left: 0; right: 0;
     background: linear-gradient(135deg, #1a1030, #0f1a30);
     border-bottom: 1px solid #3a2a60;
-    padding: 10px 14px 10px 14px;
-    z-index: 200;
+    padding: 10px 14px; z-index: 200;
     box-shadow: 0 2px 16px rgba(0,0,0,0.6);
   }
-  #mobile-banner .mb-inner {
-    display: flex; align-items: center; gap: 10px;
-  }
-  #mobile-banner .mb-icon {
-    font-size: 1.4rem; flex-shrink: 0;
-  }
-  #mobile-banner .mb-text {
-    flex: 1;
-    font-size: .72rem; color: #c0b0e8; line-height: 1.4;
-  }
-  #mobile-banner .mb-text strong {
-    display: block; color: #e0d0ff; font-size: .78rem; margin-bottom: 2px;
-  }
+  #mobile-banner .mb-inner { display: flex; align-items: center; gap: 10px; }
+  #mobile-banner .mb-icon { font-size: 1.4rem; flex-shrink: 0; }
+  #mobile-banner .mb-text { flex: 1; font-size: .72rem; color: #c0b0e8; line-height: 1.4; }
+  #mobile-banner .mb-text strong { display: block; color: #e0d0ff; font-size: .78rem; margin-bottom: 2px; }
   #mobile-banner .mb-close {
     background: none; border: 1px solid #5a3a90; border-radius: 6px;
     color: #c0b0e8; font-size: .68rem; padding: 4px 8px;
-    cursor: pointer; flex-shrink: 0; pointer-events: all;
-    transition: all .15s;
+    cursor: pointer; flex-shrink: 0;
   }
-  #mobile-banner .mb-close:hover { background: #2a1a50; color: #fff; }
-
-  /* ══════════════════════════════════════════════
-     MOBILE DÉTECTÉ — portrait & paysage
-  ══════════════════════════════════════════════ */
 
   body.mobile-detected #cameras { top: 62px; }
   body.mobile-detected #panel   { top: 62px; }
   body.mobile-detected #editor  { top: 62px; }
   body.mobile-detected #title   { display: none; }
 
-  /* PORTRAIT */
   body.mobile-detected #panel,
-  body.mobile-detected #editor {
-    width: 40vw;
-    right: 4px;
-    max-height: calc(100vh - 74px);
-    overflow-y: auto;
-  }
-  body.mobile-detected #cameras {
-    left: 4px; max-width: 56vw; gap: 3px; flex-wrap: wrap;
-  }
+  body.mobile-detected #editor { width: 40vw; right: 4px; max-height: calc(100vh - 74px); }
+  body.mobile-detected #cameras { left: 4px; max-width: 56vw; gap: 3px; }
   body.mobile-detected #cameras button { font-size: .62rem; padding: 4px 6px; }
-  body.mobile-detected #controls {
-    bottom: 4px; left: 4px; flex-wrap: wrap; max-width: 56vw; gap: 3px;
-  }
+  body.mobile-detected #controls { bottom: 4px; left: 4px; max-width: 56vw; gap: 3px; }
   body.mobile-detected #controls button { font-size: .62rem; padding: 4px 7px; }
-  body.mobile-detected .shot-btn { padding: 6px 7px; gap: 2px; }
-  body.mobile-detected .shot-btn .name { font-size: .72rem; }
-  body.mobile-detected .shot-btn .es   { font-size: .65rem; }
-  body.mobile-detected .shot-btn .desc { font-size: .60rem; line-height: 1.25; margin-top: 2px; }
-
-  /* PAYSAGE */
-  body.mobile-detected.landscape #panel,
-  body.mobile-detected.landscape #editor {
-    width: 25vw;
-    top: 8px;
-    right: 4px;
-    max-height: calc(100vh - 16px);
-    overflow-y: auto;
-  }
-  body.mobile-detected.landscape #cameras {
-    top: 8px; left: 4px;
-    max-width: calc(75vw - 8px);
-    gap: 3px;
-  }
-  body.mobile-detected.landscape #controls {
-    bottom: 4px; left: 4px;
-    max-width: calc(75vw - 8px);
-    gap: 3px;
-  }
-  body.mobile-detected.landscape #editor .etitle { font-size: .68rem; margin-bottom: 4px; }
-  body.mobile-detected.landscape #editor .grp-label { font-size: .54rem; margin-top: 8px; padding-bottom: 2px; }
-  body.mobile-detected.landscape #editor .grp:first-child .grp-label { margin-top: 0; }
-  body.mobile-detected.landscape #editor .srow { margin-bottom: 8px; }
-  body.mobile-detected.landscape #editor .srow .slabel { font-size: .60rem; margin-bottom: 3px; }
-  body.mobile-detected.landscape #editor .srow input[type=range] { height: 4px; }
-  body.mobile-detected.landscape #editor .vert-col { padding: 5px 3px; flex: 0 0 22px; }
-  body.mobile-detected.landscape #editor .vert-col .col-lbl { font-size: .52rem; }
-  body.mobile-detected.landscape #editor .v-range-wrap input[type=range] { height: 60px; }
-  body.mobile-detected.landscape #editor .btns { gap: 3px; margin-top: 6px; }
-  body.mobile-detected.landscape #editor button { font-size: .60rem; padding: 4px 6px; }
 
   body.editor-open #panel { display: none !important; }
 
-  /* Bannière orientation portrait */
   #rotate-hint {
-    display: none;
-    position: fixed; inset: 0; z-index: 500;
-    background: #0a0c12ee;
-    flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; color: #c0c8e8; font-size: .9rem; text-align: center; padding: 20px;
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: #0a0c12ee; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px; color: #c0c8e8; font-size: .9rem; text-align: center; padding: 20px;
   }
   #rotate-hint .rh-icon { font-size: 3rem; animation: rotateHint 2s ease-in-out infinite; }
   @keyframes rotateHint { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(90deg)} }
-  #rotate-hint p { max-width: 260px; line-height: 1.5; color: #a0b0d0; }
-  #rotate-hint small { font-size: .72rem; color: #606880; }
   #rotate-hint button {
     margin-top: 6px; padding: 7px 18px; border: 1px solid #3a4060;
     border-radius: 8px; background: #12141c; color: #8090c0; cursor: pointer; font-size: .78rem;
@@ -375,7 +236,7 @@
     <div class="mb-icon">📱</div>
     <div class="mb-text">
       <strong>Application optimisée pour ordinateur</strong>
-      Cette simulation 3D est conçue pour être utilisée sur un écran plus grand. Certaines fonctionnalités peuvent être difficiles à utiliser sur téléphone.
+      Cette simulation 3D est conçue pour être utilisée sur un écran plus grand.
     </div>
     <button class="mb-close" id="mb-close-btn">Compris</button>
   </div>
@@ -384,20 +245,17 @@
 <div id="rotate-hint">
   <div class="rh-icon">📱</div>
   <strong style="font-size:1rem;color:#e0e8ff">Tournez votre téléphone</strong>
-  <p>Ce simulateur 3D s'affiche mieux en <strong>mode paysage</strong> (téléphone à l'horizontale).</p>
-  <small>Vous pouvez aussi continuer en portrait.</small>
+  <p>Ce simulateur 3D s'affiche mieux en <strong>mode paysage</strong>.</p>
   <button id="rh-dismiss">Continuer quand même</button>
 </div>
 
 <div id="container"></div>
-<div id="flash-overlay"></div>
-<div id="collision-alert"></div>
 
 <div id="cameras">
   <button data-cam="default" class="active">Vue 3/4</button>
   <button data-cam="side">Côté (Vitre)</button>
   <button data-cam="player">Vue joueur</button>
-  <button data-cam="gallery">Galerie (Tambour)</button>
+  <button data-cam="gallery">Vue Galerie</button>
 </div>
 
 <div id="panel"></div>
@@ -414,7 +272,6 @@
   <div class="etitle">Simuler vos coups</div>
 
   <div class="sandwich">
-
     <div class="vert-col">
       <div class="col-lbl">Puissance</div>
       <div class="extremity">+</div>
@@ -459,33 +316,16 @@
       <div class="extremity">−</div>
       <div class="v-num-val" id="sv_pos_y">0.80m</div>
     </div>
-
-  </div>
-
-</div>
-
-<div id="copyright" style="opacity: 0.75;">
-  <div class="copy-slider-panel">
-    <label>Opacité</label>
-    <input type="range" min="10" max="100" value="75" step="5" id="copy-op-sl">
-    <span id="copy-op-val">75%</span>
-  </div>
-  <div class="copy-cartouche">
-    <img class="copy-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABHwAAAWwCAYAAAAv1VZUAAAAAXNSR0IB2cksfwAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAlwSFlzAAAuIwAALiMBeKU/dgAAAAd0SU1FB+oEDw8jG+l43WIAACAASURBVHja7N13VBRp+jbgu2my5CSIIAYwy+BgVsw5xzHnnMY45pwdc9bBnNOYx5wDozIiigkkCCpIzhn6+8Pd/WbntxOquhu6q+/rnD17Zneet7vuequ766HqLRnGVp8EqZEpTACZEUi6FApjKGDMICRMJjMCFCYMQtIMIEMJxiDpA1kfgBlzkPQXshwKmTlzkPQ+1gNkFsxB2h/WkCksGYPkdzP3se65qw8Z1kvxM4sk3wzgbtaR3x9ERKThn9P8qOZ3MXE/E5FG0mMERERERERERETSwoYPEREREREREZHEsOFDRERERERERCQxbPgQEREREREREUkMGz5ERERERERERBLDhg8RERERERERkcSw4UNEREREREREJDFs+BARERERERERSQwbPkREREREREREEsOGDxERERERERGRxLDhQ0REREREREQkMWz4EBERERHRf6RkpjIEIiIJYMOHiIiIiIj+o9bGQWz6EBFJABs+RERERET0HyFxUXBb2xvp2ekMg4hIi+kzAiL6p6KTYhAR9wHRyTFIzU5HVl420nMyYWViAQO5Pkpa2sPZuhTKObjBzNiMgZFkFCoKEZ38BdFJ0YhPS0B8WgKy83ORV5CH9JxMmBmZwkBuAGtTi6//XcIKzjalUNqmNAz1DRggkRq+j2JT4xCbGof49ERk5GSioLAAqdnpkMvksDD5+h1kb2YDO3Nb2JrZb3B28HN+59nERERUfFiw4dIi2Xn5eBy4DWMOzgLsrnN4LaoA8ae2YjbIc+B3FwERAZp3TZ9ToomIiJSGzZ8iLRMWlYakhMyuONDRERaiQ0fIi2W/OUjfj/yGyYfnQ/YOBT7m3A5sQ9wKInb3x6gzv4u2i7m5yO/IF/cIBnpaL1/LtzW9tHKbTY1MtWqrW7+12d8ToxmgEQkYWy4EBER6Yy4+AjcDL6DOyEvyA0A3f/2gPj0BCTGJvC+k+11h3ZCSUuhh5W5n35G/e2jUcfF13L5S562gTcy4PspIknhv46IiIh0wqewIGS8+lDscZ+t11Vb23kQZJBh61jflv7O3Lw8fH77RPyc21vYA12822Pztd3InF7V3G3j4Tsqb+Q34iWSo9kZcE1V4Vd+Q0K/Yf3Ds9hyfbdatrUot0vR9pWc+V8iUg2+RUpERET0D4i5j8YmxqLHRH56jYx3n0Tf2hdwcUP+t+tF1pU+e5uXq4+rI72x+65gX3x364iWP+Z/zMTAEHXdVmvd9pY0H6j3a+B+wY+xsP04+F3xV7f0X02a/pP1r4V0fS1r1x/LbgwF5GgOISLp+g+8+yVz58fMvwAAAABJRU5ErkJggg==">
-    <div class="copy-text">
-      <span class="copy-name">Fédération Française de Pelote Basque</span>
-      <span class="copy-sub">Plateforme Trinquet 3D</span>
-    </div>
   </div>
 </div>
 
 <script>
-// --- DONNÉES ET CONFIGURATION DU SIMULATEUR ---
+// --- DONNÉES D'ORIGINE ---
 const SHOTS = [
   {
     name: "Carambole Cloche",
     es: "Picado / Carambola",
-    desc: "Balle piquée frappant le frontis très haut, puis la planche supérieure pour retomber à pic.",
+    desc: "Balle piquée frappant le frontis très haut, puis le tejadillo supérieur pour retomber à pic.",
     color: "#ff4a4a",
     origin: { x: 15.5, y: 0.8, z: 5.0 },
     v0: { x: -16.0, y: 15.0, z: -2.5 }
@@ -493,15 +333,15 @@ const SHOTS = [
   {
     name: "Coup du Tambour",
     es: "Tambor / Chapa",
-    desc: "Frappe tendue rasant la ligne pour surprendre l'adversaire au fond.",
+    desc: "Frappe tendue rasant la chapa pour surprendre l'adversaire au fond.",
     color: "#ffaa00",
     origin: { x: 14.0, y: 0.9, z: 4.5 },
     v0: { x: -22.0, y: 5.2, z: -0.5 }
   },
   {
-    name: "Brosse Filet",
+    name: "Brosse Sare G.",
     es: "Efecto Sare",
-    desc: "Tir brossé ricochant sur le filet latéral pour désaxer la trajectoire.",
+    desc: "Tir brossé ricochant sur la sare gauche pour désaxer la trajectoire.",
     color: "#4aff7c",
     origin: { x: 16.0, y: 0.7, z: 6.0 },
     v0: { x: -18.0, y: 7.5, z: -5.5 }
@@ -516,12 +356,10 @@ const SHOTS = [
   }
 ];
 
-// Dimensions Trinquet (mètres)
 const COURT = { length: 28.5, width: 9.3, height: 8.5, chapaH: 0.85 };
 
-// Variable Globales 3D
 let scene, camera, renderer, controls;
-let ball, trajLine, shadowPlane;
+let ball, trajLine;
 let currentShotIdx = 0;
 let isPaused = false;
 let speedFactor = 0.5;
@@ -530,7 +368,6 @@ let trajectoryPoints = [];
 let animProgress = 0;
 let customParams = { posX: 15.5, posY: 0.8, posZ: 5.0, angleH: 7, angleV: 25, strength: 20 };
 
-// Cibles Caméra
 const CAM_POSITIONS = {
   default: { pos: [24, 12, 18], target: [0, 2, 0] },
   side:    { pos: [0, 4, 15], target: [0, 2, 0] },
@@ -554,15 +391,12 @@ function init() {
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
 
-  // Lumières
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
 
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
   dirLight.position.set(10, 20, 10);
   dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 2048;
-  dirLight.shadow.mapSize.height = 2048;
   scene.add(dirLight);
 
   buildCourt();
@@ -588,7 +422,7 @@ function buildCourt() {
   floor.receiveShadow = true;
   group.add(floor);
 
-  // Mur de Frontis (Front)
+  // Frontis
   const frontGeo = new THREE.PlaneGeometry(COURT.width, COURT.height);
   const frontMat = new THREE.MeshStandardMaterial({ color: 0x2a3245, roughness: 0.3 });
   const front = new THREE.Mesh(frontGeo, frontMat);
@@ -597,28 +431,13 @@ function buildCourt() {
   front.receiveShadow = true;
   group.add(front);
 
-  // Ligne de Chapa (LIGNE 0.85m)
+  // Chapa
   const chapaGeo = new THREE.PlaneGeometry(COURT.width, 0.08);
   const chapaMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
   const chapa = new THREE.Mesh(chapaGeo, chapaMat);
   chapa.position.set(-COURT.length / 2 + 0.01, COURT.chapaH, 0);
   chapa.rotation.y = Math.PI / 2;
   group.add(chapa);
-
-  // Ligne de 5.50m (LIGNE 5.50m)
-  const line550Geo = new THREE.PlaneGeometry(COURT.width, 0.05);
-  const line550Mat = new THREE.MeshBasicMaterial({ color: 0xccaa00 });
-  const line550 = new THREE.Mesh(line550Geo, line550Mat);
-  line550.position.set(-COURT.length / 2 + 5.5, 0.01, 0);
-  line550.rotation.x = -Math.PI / 2;
-  group.add(line550);
-
-  // Planche supérieure (PLANCHE)
-  const plancheGeo = new THREE.BoxGeometry(0.2, 0.4, COURT.width);
-  const plancheMat = new THREE.MeshStandardMaterial({ color: 0x553311, roughness: 0.6 });
-  const planche = new THREE.Mesh(plancheGeo, plancheMat);
-  planche.position.set(-COURT.length / 2 + 0.1, COURT.height - 0.2, 0);
-  group.add(planche);
 
   scene.add(group);
 }
@@ -661,7 +480,6 @@ function calculateTrajectory() {
     p.z += v.z * dt;
     v.y += g * dt;
 
-    // Rebonds simples (Sol & Frontis)
     if (p.y <= 0.12) { p.y = 0.12; v.y *= -0.75; }
     if (p.x <= -COURT.length / 2 + 0.12) { p.x = -COURT.length / 2 + 0.12; v.x *= -0.8; }
   }
@@ -717,12 +535,10 @@ function buildUI() {
     panel.appendChild(btn);
   });
 
-  // Listeners Boutons Caméras
   document.querySelectorAll('#cameras button').forEach(b => {
     b.onclick = () => setCamera(b.dataset.cam);
   });
 
-  // Listeners Controles
   document.getElementById('replay').onclick = () => { animProgress = 0; };
   document.getElementById('pause').onclick = (e) => {
     isPaused = !isPaused;
@@ -734,7 +550,6 @@ function buildUI() {
   };
   document.getElementById('editToggle').onclick = () => toggleCustomMode(!isCustomMode);
 
-  // Sliders Editeur
   setupSliders();
 }
 
@@ -767,7 +582,6 @@ function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  checkOrientation();
 }
 
 function setupMobileHandlers() {
@@ -782,19 +596,8 @@ function setupMobileHandlers() {
   document.getElementById('rh-dismiss').onclick = () => {
     document.getElementById('rotate-hint').style.display = 'none';
   };
-  window.addEventListener('orientationchange', checkOrientation);
-  checkOrientation();
 }
 
-function checkOrientation() {
-  const isLandscape = window.innerWidth > window.innerHeight;
-  document.body.classList.toggle('landscape', isLandscape);
-  if (document.body.classList.contains('mobile-detected')) {
-    document.getElementById('rotate-hint').style.display = isLandscape ? 'none' : 'flex';
-  }
-}
-
-// Lancement au chargement de la page
 window.onload = init;
 </script>
 </body>
