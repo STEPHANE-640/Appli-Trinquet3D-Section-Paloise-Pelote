@@ -59,7 +59,6 @@
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: all .15s;
   }
   #controls button:hover { background: #1e2230dd; color: #fff; }
-  #dimBtn.active { border-color: #ccaa00; color: #ccaa00; }
   #editToggle.active { border-color: #7ec8ff; color: #7ec8ff; }
   #controls button#placementZonesToggle { border-color: #7a2a2a; color: #ffb0b0; }
   #controls button#placementZonesToggle:hover { background: #2a1414dd; color: #fff; border-color: #ff5050; }
@@ -72,6 +71,39 @@
   #controls button#dangerZonesToggle.active {
     background: #3a1018dd; border-color: #e6304a; color: #ff6a85;
     box-shadow: 0 0 10px rgba(230,48,74,.4);
+  }
+  #controls button#playersToggle { border-color: #2a6a3a; color: #b0e8c0; }
+  #controls button#playersToggle:hover { background: #14261add; color: #fff; border-color: #3fd06a; }
+  #controls button#playersToggle.active {
+    background: #10301ddd; border-color: #3fd06a; color: #6affa0;
+    box-shadow: 0 0 10px rgba(63,208,106,.4);
+  }
+
+  /* Panneau "écart avant/arrière" pour les pastilles joueurs */
+  /* Légendes des équipes : affichées immédiatement à droite du cartouche
+     "Placement joueurs (4 pastilles)". La position est calculée en JS pour
+     rester alignée avec le bouton, sans modifier le canvas ni son affichage. */
+  #players-panel {
+    display: none;
+    position: fixed;
+    background: rgba(18, 20, 28, 0.9);
+    padding: 6px 10px;
+    border-radius: 8px;
+    z-index: 10;
+    font-size: .72rem;
+    color: #ddd;
+    line-height: 1.35;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid #2a2d38;
+    white-space: nowrap;
+  }
+  #players-panel .pp-row { display: flex; align-items: center; gap: 6px; }
+  #players-panel .pp-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+  body.mobile-detected.landscape #players-panel {
+    font-size: .58rem;
+    padding: 5px 7px;
+    line-height: 1.25;
   }
 
   #editor {
@@ -435,15 +467,17 @@
 <div id="panel"></div>
 
 <div id="controls">
-  <button id="dimBtn">Dimensions</button>
-  <button id="speed">Vitesse : 0.5x</button>
-  <button id="replay">&#x25B6; Rejouer</button>
-  <button id="pause">Pause</button>
   <button id="editToggle">Simuler vos coups</button>
   <div style="display:flex; flex-direction:column; gap:6px;">
-    <button id="dangerZonesToggle">Zones de pelote à éviter</button>
+    <button id="dangerZonesToggle">Zone de pelote à éviter</button>
     <button id="placementZonesToggle">Ajouter les zones de placements</button>
   </div>
+  <button id="playersToggle">Placement joueurs (4 pastilles)</button>
+</div>
+
+<div id="players-panel">
+  <div class="pp-row"><span class="pp-dot" style="background:#DA121A;"></span>Équipe A (avant/arrière) : <b id="pp-distA">–</b></div>
+  <div class="pp-row"><span class="pp-dot" style="background:#FCDD09;"></span>Équipe B (avant/arrière) : <b id="pp-distB">–</b></div>
 </div>
 
 <div id="editor">
@@ -1177,6 +1211,7 @@ function createCourtLabels() {
   const defs = [
     ['FRONTIS', [-0.8, 5, COURT_W/2], '#c06060', 0.7],
     ['REBOTE', [COURT_L + 0.8, 3, COURT_W/2], '#5070b0', 0.6],
+    ['9,30m', [COURT_L + 0.8, 2.2, COURT_W/2], '#ffffff', 0.32],
     ['FRAILE', [0.5, WALL_H_FRONT + 0.5, 0.5], '#d4a040', 0.5],
     ['TEJADILLO', [COURT_L/2, TEJ_H_INNER + 0.8, COURT_W - 0.3], '#50a060', 0.5],
     ['SARE', [COURT_L/2, 1.4, TEJ_Z - 0.5], '#9060b0', 0.4],
@@ -1188,6 +1223,7 @@ function createCourtLabels() {
     ['15m', [15, 0.05, -0.6], '#ffffff', 0.3],
     ['17,5m', [17.5, 0.05, -0.6], '#ffffff', 0.3],
     ['20m', [20, 0.05, -0.6], '#ffffff', 0.3],
+    ['28,5m', [COURT_L, 0.05, -0.6], '#ffffff', 0.3],
     ['CHAPA 0,80m', [0.5, CHAPA_LOW + 0.5, -0.7], '#ffee00', 0.30],
     ['CHAPA 8,50m', [0.5, CHAPA_HIGH + 0.5, -0.7], '#ffee00', 0.30],
     ['CHAPA 5,50m', [COURT_L + 0.8, CHAPA_REBOTE + 0.5, COURT_W/2], '#ffee00', 0.30],
@@ -1263,13 +1299,13 @@ const PLACEMENT_LINE_15M = 15;
 
 // ── Zones de pelote à éviter (2e surcouche, même fonctionnement que les zones de placements) ──
 // Rectangle rouge mi-transparent allant de la ligne des 10 m à celle des 17,5 m,
-// et seulement du côté vitre jusqu'à l'axe central (milieu du terrain).
+// et du côté vitre jusqu'à 0,65 m au-delà de l'axe central (milieu du terrain).
 const DANGER_ZONE_COLOR   = '#e6304a';
 const DANGER_ZONE_OPACITY = 0.42; // mi-transparente : visible mais ne masque pas ce qu'il y a dessous
 const DANGER_ZONE_X_MIN   = PLACEMENT_LINE_10M; // 10 m
 const DANGER_ZONE_X_MAX   = 17.5;               // 17,5 m
 const DANGER_ZONE_Z_MIN   = 0;                  // côté vitre
-const DANGER_ZONE_Z_MAX   = PLACEMENT_ZONE_MID_Z; // jusqu'au milieu depuis la vitre
+const DANGER_ZONE_Z_MAX   = PLACEMENT_ZONE_MID_Z + 0.65; // élargie de 0,65 m au-delà de l'axe central
 
 const placementZonesGroup = new THREE.Group();
 placementZonesGroup.visible = false;
@@ -1447,6 +1483,273 @@ scene.add(dangerZonesGroup);
     new THREE.Vector3(xMax, 0.013, zMax), new THREE.Vector3(xMin, 0.013, zMax),
   ]), lineMat));
 })();
+
+// ── Pions de placement joueurs (surcouche pédagogique, déplaçable) ──
+// 4 pions façon échecs : 2 rouges (équipe A, avant + arrière) et 2 jaunes
+// (équipe B, avant + arrière) — couleurs du drapeau béarnais/catalan (Sényera).
+// Déplaçables librement à la souris/tactile (glisser-déposer simple, sans
+// magnétisme ni comportement automatique — l'ancienne mécanique (formation
+// défensive auto, verrouillage sur le fantôme) a été retirée : à retravailler.
+// Position par défaut : exemple d'engagement équipe A donné par l'utilisateur.
+//   - Équipe A avant  : 18 m de profondeur, ~3 m du filet (mur gauche / tambour)
+//   - Équipe A arrière: 4 m derrière son avant, même ligne latérale (gêne mini. B)
+//   - Équipe B avant  : 19 m de profondeur, ~1 m du filet, pour défendre/renvoyer
+//   - Équipe B arrière: 5 m derrière son avant, plus centré pour couvrir large
+// NB : les distances au "filet" sont mesurées depuis le mur gauche (tambour),
+// où se trouvent les filets. Les positions z des arrières sont des hypothèses
+// raisonnables (non précisées) : ajustez-les librement par glisser-déposer.
+const PLAYER_TEAM_COLORS = { A: '#DA121A', B: '#FCDD09' };
+const PLAYER_PAWN_RADIUS = 0.42;
+const PLAYER_PAWN_HEIGHT = 1.05;
+// z max borné à TEJ_Z (plan du filet côté tambour) et non COURT_W : au-delà,
+// on serait "dans" le tambour, une zone physiquement infranchissable pour un
+// joueur. Ça évite de pouvoir reproduire par glisser-déposer le bug initial
+// (pion "avant B" placé à l'intérieur du filet).
+const PLAYER_DRAG_X_MIN = 0, PLAYER_DRAG_X_MAX = PLACEMENT_ZONE_LENGTH;
+const PLAYER_DRAG_Z_MIN = 0, PLAYER_DRAG_Z_MAX = TEJ_Z;
+
+// IMPORTANT : le plan physique du filet (tambour, mur gauche) est à z = TEJ_Z
+// (= COURT_W - 1,3 m), pas à z = COURT_W. Le tambour lui-même occupe la tranche
+// [TEJ_Z, COURT_W] : un pion placé dans cette tranche serait "à l'intérieur"
+// du filet, ce qui est impossible pour un joueur. Les distances "X m du filet"
+// se mesurent donc depuis TEJ_Z, vers l'intérieur du court (z décroissant).
+const defaultPlayerLayout = {
+  avA: { x: 18,             z: TEJ_Z - 3,            team: 'A', label: 'Av. A' },
+  arA: { x: 18 + 4,         z: TEJ_Z - 3,            team: 'A', label: 'Ar. A' },
+  avB: { x: 19,             z: TEJ_Z - 1,            team: 'B', label: 'Av. B' },
+  arB: { x: 19 + 5,         z: PLACEMENT_ZONE_MID_Z, team: 'B', label: 'Ar. B' },
+};
+
+const playersGroup = new THREE.Group();
+playersGroup.visible = false;
+scene.add(playersGroup);
+
+function createPuckLabelSprite(text) {
+  const canvas = document.createElement('canvas');
+  const c = canvas.getContext('2d');
+  canvas.width = 256; canvas.height = 96;
+  c.font = 'bold 44px system-ui, sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.lineWidth = 8; c.strokeStyle = '#000000';
+  c.strokeText(text, 128, 48);
+  c.fillStyle = '#ffffff';
+  c.fillText(text, 128, 48);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sp.scale.set(1.3, 0.5, 1);
+  return sp;
+}
+
+// Profil d'un pion d'échec stylisé (socle large, fût, collerette, tête
+// arrondie), révolutionné autour de l'axe Y avec THREE.LatheGeometry.
+// Une seule géométrie est partagée par les 4 pions (seule la couleur change).
+function createPawnGeometry(radius, height) {
+  const R = radius, H = height;
+  const profile = [
+    new THREE.Vector2(0,        0),
+    new THREE.Vector2(R * 1.00, 0),
+    new THREE.Vector2(R * 1.00, H * 0.06),
+    new THREE.Vector2(R * 0.62, H * 0.14),
+    new THREE.Vector2(R * 0.60, H * 0.20),
+    new THREE.Vector2(R * 0.30, H * 0.42),
+    new THREE.Vector2(R * 0.30, H * 0.50),
+    new THREE.Vector2(R * 0.46, H * 0.56),
+    new THREE.Vector2(R * 0.30, H * 0.62),
+    new THREE.Vector2(R * 0.32, H * 0.68),
+    new THREE.Vector2(R * 0.50, H * 0.80),
+    new THREE.Vector2(R * 0.50, H * 0.87),
+    new THREE.Vector2(R * 0.28, H * 0.96),
+    new THREE.Vector2(0,        H * 1.00),
+  ];
+  return new THREE.LatheGeometry(profile, 28);
+}
+const pawnGeometry = createPawnGeometry(PLAYER_PAWN_RADIUS, PLAYER_PAWN_HEIGHT);
+const pawnEdgesGeometry = new THREE.EdgesGeometry(pawnGeometry, 25);
+
+const playerPucks = {};
+
+Object.entries(defaultPlayerLayout).forEach(([key, def]) => {
+  const color = PLAYER_TEAM_COLORS[def.team];
+  const puckGroup = new THREE.Group();
+
+  const pawnMat = new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.08 });
+  const pawn = new THREE.Mesh(pawnGeometry, pawnMat);
+  pawn.userData.isPlayerPuck = true;
+  pawn.userData.puckKey = key;
+  puckGroup.add(pawn);
+
+  const edges = new THREE.LineSegments(
+    pawnEdgesGeometry,
+    new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 })
+  );
+  puckGroup.add(edges);
+
+  const label = createPuckLabelSprite(def.label);
+  label.position.set(0, PLAYER_PAWN_HEIGHT + 0.35, 0);
+  puckGroup.add(label);
+
+  puckGroup.position.set(def.x, 0.02, def.z);
+  playersGroup.add(puckGroup);
+
+  playerPucks[key] = { group: puckGroup, disc: pawn, team: def.team, x: def.x, z: def.z };
+});
+
+function setPuckPosition(key, x, z) {
+  const p = playerPucks[key];
+  p.x = x; p.z = z;
+  p.group.position.set(x, 0.02, z);
+}
+
+function resetPlayerLayout() {
+  Object.entries(defaultPlayerLayout).forEach(([key, def]) => setPuckPosition(key, def.x, def.z));
+  updatePlayersPanel();
+}
+
+function updatePlayersPanel() {
+  const distA = Math.hypot(playerPucks.avA.x - playerPucks.arA.x, playerPucks.avA.z - playerPucks.arA.z);
+  const distB = Math.hypot(playerPucks.avB.x - playerPucks.arB.x, playerPucks.avB.z - playerPucks.arB.z);
+  const elA = document.getElementById('pp-distA');
+  const elB = document.getElementById('pp-distB');
+  if (elA) elA.textContent = distA.toFixed(1) + ' m';
+  if (elB) elB.textContent = distB.toFixed(1) + ' m';
+  positionPlayersPanel();
+}
+updatePlayersPanel();
+
+
+// ── Interaction glisser-déposer des pastilles ──
+const playerRaycaster = new THREE.Raycaster();
+const playerDragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const playerPointerNDC = new THREE.Vector2();
+const playerDragPoint = new THREE.Vector3();
+let draggedPuckKey = null;
+let draggingGhost = false;
+let ghostPointerStart = null;
+let ghostMoved = false;
+const GHOST_CLICK_TOLERANCE = 5; // px : en-deçà, on considère que c'est un clic (pas un glisser)
+
+function pointerToNDC(evt) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  playerPointerNDC.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+  playerPointerNDC.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+}
+
+// Un seul système de glisser-déposer au sol (plan y=0), réutilisé pour :
+//  - les 4 pastilles de placement (équipes A/B) ;
+//  - le joueur "fantôme" de l'éditeur "Simuler vos coups" (poignée ghostHandle).
+// Priorité au fantôme quand l'éditeur est ouvert, pour éviter toute ambiguïté.
+renderer.domElement.addEventListener('pointerdown', (evt) => {
+  pointerToNDC(evt);
+  playerRaycaster.setFromCamera(playerPointerNDC, camera);
+
+  const editorVisible = document.getElementById('editor').classList.contains('visible');
+  if (editorVisible) {
+    const ghostHits = playerRaycaster.intersectObjects([ghostHandle, playerBody, playerHead], false);
+    if (ghostHits.length > 0) {
+      draggingGhost = true;
+      ghostMoved = false;
+      ghostPointerStart = { x: evt.clientX, y: evt.clientY };
+      controls.enabled = false;
+      renderer.domElement.style.cursor = 'grabbing';
+      evt.preventDefault();
+      return;
+    }
+  }
+
+  if (playersGroup.visible) {
+    const discs = Object.values(playerPucks).map(p => p.disc);
+    const hits = playerRaycaster.intersectObjects(discs, false);
+    if (hits.length > 0) {
+      draggedPuckKey = hits[0].object.userData.puckKey;
+      controls.enabled = false;
+      renderer.domElement.style.cursor = 'grabbing';
+      evt.preventDefault();
+    }
+  }
+});
+
+window.addEventListener('pointermove', (evt) => {
+  if (!draggedPuckKey && !draggingGhost) return;
+  pointerToNDC(evt);
+  playerRaycaster.setFromCamera(playerPointerNDC, camera);
+  if (!playerRaycaster.ray.intersectPlane(playerDragPlane, playerDragPoint)) return;
+
+  if (draggingGhost) {
+    if (!ghostMoved && ghostPointerStart) {
+      const dx = evt.clientX - ghostPointerStart.x;
+      const dy = evt.clientY - ghostPointerStart.y;
+      if (Math.hypot(dx, dy) > GHOST_CLICK_TOLERANCE) ghostMoved = true;
+    }
+    setGhostPositionFromDrag(playerDragPoint.x, playerDragPoint.z);
+    return;
+  }
+
+  const x = Math.min(PLAYER_DRAG_X_MAX, Math.max(PLAYER_DRAG_X_MIN, playerDragPoint.x));
+  const z = Math.min(PLAYER_DRAG_Z_MAX, Math.max(PLAYER_DRAG_Z_MIN, playerDragPoint.z));
+  setPuckPosition(draggedPuckKey, x, z);
+  updatePlayersPanel();
+  updateMinimap(x, z);
+});
+
+window.addEventListener('pointerup', () => {
+  if (!draggedPuckKey && !draggingGhost) return;
+  const wasGhostClick = draggingGhost && !ghostMoved;
+  draggedPuckKey = null;
+  draggingGhost = false;
+  ghostPointerStart = null;
+  controls.enabled = true;
+  renderer.domElement.style.cursor = '';
+  // Clic (sans glisser) sur le joueur fantôme : on rejoue le coup.
+  if (wasGhostClick) {
+    replay();
+  }
+});
+
+function positionPlayersPanel() {
+  const toggle = document.getElementById('playersToggle');
+  const panel = document.getElementById('players-panel');
+  if (!toggle || !panel || !playersGroup.visible) return;
+
+  const rect = toggle.getBoundingClientRect();
+  const gap = 8;
+  const panelWidth = panel.offsetWidth;
+  const panelHeight = panel.offsetHeight;
+
+  // Priorité : directement à droite du cartouche/bouton.
+  let left = rect.right + gap;
+  let top = rect.top + (rect.height - panelHeight) / 2;
+
+  // Évite de sortir de l'écran sur les petits écrans.
+  if (left + panelWidth > window.innerWidth - 4) {
+    left = Math.max(4, window.innerWidth - panelWidth - 4);
+  }
+  if (top + panelHeight > window.innerHeight - 4) {
+    top = Math.max(4, window.innerHeight - panelHeight - 4);
+  }
+  if (top < 4) top = 4;
+
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+  panel.style.right = 'auto';
+  panel.style.bottom = 'auto';
+}
+
+document.getElementById('playersToggle').addEventListener('click', () => {
+  playersGroup.visible = !playersGroup.visible;
+  const panel = document.getElementById('players-panel');
+  document.getElementById('playersToggle').classList.toggle('active', playersGroup.visible);
+  panel.style.display = playersGroup.visible ? 'block' : 'none';
+
+  if (playersGroup.visible) {
+    updatePlayersPanel();
+    // Attendre le rendu du cartouche avant de mesurer sa largeur/position.
+    requestAnimationFrame(positionPlayersPanel);
+  }
+});
+
+window.addEventListener('resize', positionPlayersPanel);
+
 
 // ── Définitions des coups ──
 const shotKeys = ['saque', 'saqueh', 'plche', 'dmd', 'avdj'];
@@ -1770,6 +2073,17 @@ const playerHead = new THREE.Mesh(
 );
 scene.add(playerHead);
 
+// Poignée de déplacement au sol pour le joueur "fantôme" de l'éditeur "Simuler
+// vos coups" : plus grande et plus facile à attraper (souris/tactile) que le
+// corps/tête du joueur. Visible seulement quand l'éditeur est ouvert.
+const ghostHandle = new THREE.Mesh(
+  new THREE.CircleGeometry(0.45, 32).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })
+);
+ghostHandle.position.y = 0.015;
+ghostHandle.visible = false;
+scene.add(ghostHandle);
+
 const arrowDir = new THREE.Vector3(-1, 0, 0);
 const arrowHelper = new THREE.ArrowHelper(arrowDir, new THREE.Vector3(0, 0, 0), 3, 0xffffff, 0.4, 0.2);
 arrowHelper.visible = false;
@@ -1835,7 +2149,37 @@ function updateArrow(shot) {
   arrowHelper.setDirection(d);
   arrowHelper.setLength(2.5, 0.4, 0.2);
   arrowHelper.setColor(new THREE.Color(shotDefs[currentShot]?.color || '#ffffff'));
-  arrowHelper.visible = document.getElementById('editor').classList.contains('visible');
+  const editorVisible = document.getElementById('editor').classList.contains('visible');
+  arrowHelper.visible = editorVisible;
+  ghostHandle.position.set(shot.pos[0], 0.015, shot.pos[2]);
+  ghostHandle.visible = editorVisible;
+}
+
+// Applique une nouvelle position (x, z) au joueur fantôme depuis un
+// glisser-déposer 3D : met à jour l'état, les sliders, la flèche et déclenche
+// le recalcul (débounce) de la trajectoire, exactement comme un slider.
+function setGhostPositionFromDrag(x, z) {
+  if (!editorShot) return;
+
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  x = clamp(x, 1, 26.2);
+  z = clamp(z, 0.5, 7);
+  editorShot.pos[0] = x;
+  editorShot.pos[2] = z;
+  playerBody.position.set(x, 0.68, z);
+  playerHead.position.set(x, 1.54, z);
+  ghostHandle.position.set(x, 0.015, z);
+  const elX = document.getElementById('sl_pos_x');
+  const elZ = document.getElementById('sl_pos_z');
+  const vlX = document.getElementById('sv_pos_x');
+  const vlZ = document.getElementById('sv_pos_z');
+  if (elX) elX.value = x;
+  if (elZ) elZ.value = z;
+  if (vlX) vlX.textContent = x.toFixed(1) + ' m';
+  if (vlZ) vlZ.textContent = z.toFixed(1) + ' m';
+  updateArrow(editorShot);
+  updateMinimap(x, z);
+  scheduleLiveApply();
 }
 
 function syncEditorFromShot() {
@@ -1927,7 +2271,6 @@ function importShotDefsJson(text) {
 
 function replay() {
   animProgress = 0; animating = true; paused = false;
-  document.getElementById('pause').textContent = 'Pause';
   impactRings.forEach(r => r.visible = false);
   resetZones(); resetNetHighlights(); resetOreilleHighlights(); setCeilingHighlight(false); resetAlerts();
 }
@@ -2033,25 +2376,6 @@ function updateCamera(dt) {
 }
 
 // ── Contrôles ──
-document.getElementById('replay').addEventListener('click', replay);
-
-document.getElementById('speed').addEventListener('click', () => {
-  const speeds = [0.25, 0.5];
-  const idx = speeds.indexOf(animSpeed);
-  animSpeed = speeds[(idx + 1) % speeds.length];
-  document.getElementById('speed').textContent = `Vitesse : ${animSpeed}x`;
-});
-
-document.getElementById('pause').addEventListener('click', () => {
-  paused = !paused;
-  document.getElementById('pause').textContent = paused ? 'Reprendre' : 'Pause';
-});
-
-document.getElementById('dimBtn').addEventListener('click', () => {
-  dimGroup.visible = !dimGroup.visible;
-  document.getElementById('dimBtn').classList.toggle('active', dimGroup.visible);
-});
-
 document.getElementById('placementZonesToggle').addEventListener('click', () => {
   placementZonesGroup.visible = !placementZonesGroup.visible;
   document.getElementById('placementZonesToggle').classList.toggle('active', placementZonesGroup.visible);
@@ -2073,6 +2397,7 @@ document.getElementById('editToggle').addEventListener('click', () => {
   document.body.classList.toggle('editor-open', show);
   if (show) syncEditorFromShot();
   arrowHelper.visible = show;
+  ghostHandle.visible = show;
 });
 
 // Boutons export/import désactivés (usage interne uniquement)
