@@ -729,7 +729,7 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerH
 camera.position.set(30, 13, 0);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(10, 2, 5);
+controls.target.set(14, 2, 4.65);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.update();
@@ -2545,7 +2545,7 @@ function updateTrajectory(dt) {
 
 // ── Préréglages de caméra ──
 const cameraPresets = {
-  default: { pos: [30, 13, 0],      target: [10, 2, 5] },
+  default: { pos: [30, 13, 0],      target: [14, 2, 4.65] },
   top:     { pos: [14, 32, 4.65],   target: [14, 0, 4.65] },
   side:    { pos: [14, 5, -10],     target: [14, 3, 4.65] },
   player:  { pos: [24, 2, W - 2.3], target: [5, 2, W - 5] },
