@@ -1837,6 +1837,11 @@ function hidePlayersPucks() {
 }
 
 document.getElementById('playersToggle').addEventListener('click', () => {
+  // Dès qu'on clique sur "Placement joueurs (4 pastilles)" (ouverture ou
+  // fermeture), la dernière trajectoire affichée (trait plein + pointillés,
+  // anneaux d'impact) disparaît immédiatement pour ne pas gêner la lecture
+  // du placement des joueurs.
+  hideTrajectoryTrail();
   playersGroup.visible = !playersGroup.visible;
   const panel = document.getElementById('players-panel');
   document.getElementById('playersToggle').classList.toggle('active', playersGroup.visible);
@@ -1967,6 +1972,18 @@ function roofY(z) {
   return TEJ_H_OUTER + (z - TEJ_Z) / ROOF_DZ * ROOF_DY;
 }
 
+// Tejadillo/Sare du fond (côté rebote, x = rebTejX → COURT_L) : même principe
+// géométrique que le Tejadillo/Sare du côté ci-dessus, mais construit le long
+// de l'axe x au lieu de z (le "toit" incliné s'étend ici sur toute la largeur
+// du court, de rebTejX à COURT_L).
+const ROOF_DX_REB = COURT_L - rebTejX;
+const ROOF_N_LEN_REB = Math.sqrt(ROOF_DY * ROOF_DY + ROOF_DX_REB * ROOF_DX_REB);
+const ROOF_NORMAL_REB = new THREE.Vector3(-ROOF_DY / ROOF_N_LEN_REB, ROOF_DX_REB / ROOF_N_LEN_REB, 0);
+
+function rebRoofY(x) {
+  return TEJ_H_OUTER + (x - rebTejX) / ROOF_DX_REB * ROOF_DY;
+}
+
 const RAD = Math.PI / 180;
 const DEG = 180 / Math.PI;
 
@@ -2059,9 +2076,40 @@ function simulateShot(shot) {
       vy *= WALL_FRIC; vz *= WALL_FRIC; hit = true;
     }
 
-    if (x > COURT_L) {
-      x = 2 * COURT_L - x; vx = -Math.abs(vx) * RESTITUTION;
-      vy *= WALL_FRIC; vz *= WALL_FRIC; hit = true;
+    // Tejadillo/Sare du fond : comme pour celui du côté (bloc "z > TEJ_Z" plus
+    // bas), la pelote qui n'a pas été captée par le filet (bloc dxReb
+    // ci-dessus) rebondit soit sur la partie pleine basse du mur, soit sur le
+    // toit incliné, soit sur le vrai mur du rebote — elle ne peut plus passer
+    // au travers comme s'il n'y avait aucun obstacle.
+    if (x > rebTejX) {
+      if (y < TEJ_H_OUTER) {
+        x = 2 * rebTejX - x; vx = -Math.abs(vx) * RESTITUTION;
+        vy *= WALL_FRIC; vz *= WALL_FRIC; hit = true;
+      } else if (x > COURT_L) {
+        x = 2 * COURT_L - x; vx = -Math.abs(vx) * RESTITUTION;
+        vy *= WALL_FRIC; vz *= WALL_FRIC; hit = true;
+      } else {
+        const rry = rebRoofY(x);
+        if (y < rry) {
+          const dot = vx * ROOF_NORMAL_REB.x + vy * ROOF_NORMAL_REB.y + vz * ROOF_NORMAL_REB.z;
+          if (dot < 0) {
+            const vnx = dot * ROOF_NORMAL_REB.x, vny = dot * ROOF_NORMAL_REB.y, vnz = dot * ROOF_NORMAL_REB.z;
+            const vtx = vx - vnx, vty = vy - vny, vtz = vz - vnz;
+            const normalSpeed = Math.abs(dot);
+            if (normalSpeed > 1.5) {
+              vx = vtx * FRICTION_MUR - vnx * REBOND_TOIT;
+              vy = vty * FRICTION_MUR - vny * REBOND_TOIT;
+              vz = vtz * FRICTION_MUR - vnz * REBOND_TOIT;
+            } else {
+              const gDotN = -GRAVITY * ROOF_NORMAL_REB.y;
+              vx = (vx - vnx) * FRICTION_SOL + gDotN * ROOF_NORMAL_REB.x * SIM_DT;
+              vy = (vy - vny) * FRICTION_SOL + (-GRAVITY - gDotN * ROOF_NORMAL_REB.y) * SIM_DT;
+              vz = (vz - vnz) * FRICTION_SOL + gDotN * ROOF_NORMAL_REB.z * SIM_DT;
+            }
+          }
+          y = rry + 0.01; hit = true;
+        }
+      }
     }
 
     if (z < 0) {
@@ -2140,7 +2188,9 @@ function simulateShot(shot) {
     const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
     const onRoof = z > TEJ_Z && z < COURT_W && y >= roofY(z) - 0.05 && y <= roofY(z) + 0.15;
     const nearSare = onRoof && (z < TEJ_Z + 0.5);
-    if (i > 200 && speed < MIN_SPEED && (y < 0.15 || onRoof) && !nearSare) break;
+    const onRebRoof = x > rebTejX && x < COURT_L && y >= rebRoofY(x) - 0.05 && y <= rebRoofY(x) + 0.15;
+    const nearRebSare = onRebRoof && (x < rebTejX + 0.5);
+    if (i > 200 && speed < MIN_SPEED && (y < 0.15 || onRoof || onRebRoof) && !nearSare && !nearRebSare) break;
     if (points.length >= 1900) break;
   }
 
@@ -2273,16 +2323,14 @@ function normNum(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-// Le joueur fantôme (corps + tête) est visible dans deux cas indépendants :
-//  - l'éditeur "Simuler vos coups" est ouvert (quel que soit le coup) ;
-//  - le coup actuellement sélectionné est l'un des 4 "vrais" coups de jeu
-//    (voir GHOST_VISIBLE_SHOTS) — même éditeur fermé.
+// Le bouton "Simuler vos coups" fonctionne comme un interrupteur On/Off pour
+// le joueur fantôme : On (éditeur ouvert) → le fantôme est présent ; Off
+// (éditeur fermé) → le fantôme disparaît, quel que soit le coup sélectionné.
 // Le panneau "Placement joueurs (4 pastilles)" n'entre jamais dans ce calcul.
 function updateGhostVisibility() {
   const editorVisible = document.getElementById('editor').classList.contains('visible');
-  const visible = editorVisible || GHOST_VISIBLE_SHOTS.has(currentShot);
-  playerBody.visible = visible;
-  playerHead.visible = visible;
+  playerBody.visible = editorVisible;
+  playerHead.visible = editorVisible;
 }
 
 function updateArrow(shot) {
@@ -2417,6 +2465,18 @@ function replay() {
   animProgress = 0; animating = true; paused = false;
   impactRings.forEach(r => r.visible = false);
   resetZones(); resetNetHighlights(); resetOreilleHighlights(); setCeilingHighlight(false); resetAlerts();
+}
+
+// Efface immédiatement la trajectoire actuellement dessinée (trait plein,
+// pointillés, anneaux d'impact) sans en recalculer une nouvelle : utilisé
+// par le bouton "Placement joueurs (4 pastilles)" pour ne pas perturber la
+// lecture des pastilles à l'écran. La trajectoire réapparaît normalement
+// dès qu'un nouveau coup est sélectionné ou rejoué (replay()).
+function hideTrajectoryTrail() {
+  animating = false;
+  trailGeo.setDrawRange(0, 0);
+  dashGeo.setDrawRange(0, 0);
+  impactRings.forEach(r => r.visible = false);
 }
 
 function updateTrajectory(dt) {
